@@ -39,7 +39,7 @@ plugin lifecycle. The block, as the Claude implementation renders it:
 ```
 <usage-budget>
 5h window: ~14% used ($84.00 of ~$600.00 weighted) · ~$516.00 left · resets 22:00 (in 1h 35m)
-Burn: $73.00/h (last 30m) → 5h window caps in ~7h 04m, resets in 1h 35m
+Burn: $73.00/h (last 24m) → 5h window caps in ~7h 04m, resets in 1h 35m
 Week: ~26% used ($780.00 of ~$3000.00) · ~$2220.00 left · resets Mon 07:00 (in 106h 35m)
 Week pace: day 2/7 — $780.00 of $857.14 allowed by now (91% of today's share, on pace)
 Affordance: ~1961 more turns at $0.095/turn (median this window) · a 16 agents x 12

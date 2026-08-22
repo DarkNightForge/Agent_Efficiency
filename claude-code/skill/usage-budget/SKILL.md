@@ -44,7 +44,7 @@ unspent.
 
 ```
 5h window: ~25% used ($150.00 of ~$600.00 weighted) · ~$450.00 left · resets 22:00 (in 20m)
-Burn: $56.00/h (last 30m) → 5h window caps in ~8h 02m, resets in 20m
+Burn: $56.00/h (last 26m) → 5h window caps in ~8h 02m, resets in 20m
 Week: ~28% used ($840.00 of ~$3000.00) · ~$2160.00 left · resets Mon 07:00 (in 105h 20m)
 Confidence: low (1 calibration).
 ```
@@ -54,7 +54,8 @@ Confidence: low (1 calibration).
 | `~N% used` | Estimated fraction of the window consumed. The `~` is not decoration — see *Honesty* below. |
 | `$X of ~$Y weighted` | List-price-**equivalent** units, not money owed. A unit of account on a subscription. |
 | `resets HH:MM` | When the window rolls over and headroom returns to full. |
-| `Burn: $N/h` | Trailing 30-minute rate. |
+| `Burn: $N/h (last …)` | Trailing rate over the span the parenthesis names — spend since the sample's first turn, over at most 30 minutes. The span is printed because it varies: early in a window there may be only minutes of it. |
+| `— extrapolated` / `— thin` | The sample is under 5 minutes (floored) or under 10 minutes / 3 turns. Treat `caps in` as an order of magnitude, not a forecast; a lockout on a sample this thin is demoted to `Heads-up:` and will not lead the block. Common on the first turns after a resume, whose cache-write cost is a one-off (§35). |
 | `caps in … , resets in …` | Informational. A cap only matters as far as it precedes the reset. |
 | `Confidence` | `none` / `low` / `medium` / `high`, from agreement between calibration samples. |
 | `boundary ESTIMATED` | Appears only when the window boundary was re-derived after an idle gap. It may have opened earlier than shown, so the reset may be sooner. Suggest a re-anchor. |

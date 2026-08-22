@@ -118,7 +118,7 @@ numbers are comparable:
 ```
 <usage-budget>
 5h window: ~25% used ($150.00 of ~$600.00 weighted) · ~$450.00 left · resets 22:00 (in 20m)
-Burn: $56.00/h (last 30m) → 5h window caps in ~8h 02m, resets in 20m
+Burn: $56.00/h (last 26m) → 5h window caps in ~8h 02m, resets in 20m
 Week: ~28% used ($1156.21 of ~$4126.95) · ~$2970.74 left · resets Mon 07:00 (in 105h 20m)
 Confidence: low (1 calibration). …
 How to use: …
