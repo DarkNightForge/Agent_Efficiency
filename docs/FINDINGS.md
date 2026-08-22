@@ -2996,3 +2996,108 @@ divided by burn must equal hours to cap. Both regression tests in
 `claude-code/tests/test_meter.py` were mutation-checked. Restoring the old
 ordering fails all three ordering tests, and removing the render guard fails the
 render test.
+
+## 35. §17 gated the loudest signal and never fixed the number behind it
+
+**Reported 2026-08-22, by the user, on their first prompt after resuming a
+session:** the block opened with *"at the current burn the 5h window caps in
+about 1h 39m, after which I'd be blocked ~3h 19m until reset"* — and the reply
+to that was **"i just started, so there is no burn rate yet."**
+
+They were right about the sample and wrong about the arithmetic, which is what
+made this worth chasing. There *was* spend: `$4.24` in the window. What there
+was not was a *rate*.
+
+### Method
+
+Replayed from the live `cache.json`, the real window opened `10:07:51`:
+
+| clock | turn | window spend | span | pre-fix $/h | caps in | leads the block? |
+| --- | --- | --- | --- | --- | --- | --- |
+| 10:07:51 | 1 | $2.89 | 0s | **$173.5** | 1h 12m | **YELL** |
+| 10:08:05 | 2 | $3.07 | 14s | **$184.2** | 1h 07m | **YELL** |
+| 10:08:29 | 3 | $3.28 | 38s | **$196.9** | 1h 03m | **YELL** |
+| 10:11:08 | 8 | $4.24 | 3m | $77.4 | 2h 40m | **YELL** |
+
+**8 of the window's first 8 turns promoted a lockout.** The user's 1h 39m sits
+between rows 3 and 4 — whichever `state.json` was live when their prompt fired.
+
+Two facts compound here:
+
+1. **`_burn_rate` divided by the span, floored at one minute.** So the rate
+   *diverges* as the span goes to zero. At 14 seconds the honest arithmetic is
+   `$744/h`; the 1-minute floor reported `$173/h`. Either way it is one turn
+   wearing a per-hour costume, and the label still read `(last 30m)`.
+2. **That first turn was a resume, and cost `$2.89` — 68% of the window's entire
+   spend.** Per §25 a session's first turn *writes* its cache prefix instead of
+   reading it, so a resumed conversation pays full input price for its whole
+   replayed history, once. It is the most expensive turn of the session and it
+   is **guaranteed not to recur.**
+
+So the promoted directive was **most likely to fire in the first two minutes of a
+resumed session** — when the sample is one turn wide, that turn is the least
+representative turn there is, and the user can see the forecast is absurd.
+
+### This is the fourth session-start artifact, and the first one that is not a formula bug
+
+§25, §32 and §33 were all the same omission: a formula naming `cache_read` and
+not `cache_creation`, reading low on turns that write the prefix. **This one
+reads *high*, and no field is missing.** The `$2.89` was really spent; `_cost_of`
+was right to the cent. The defect is entirely in the **extrapolation** — a real
+cost, correctly measured, projected across five hours on the strength of a
+14-second observation.
+
+That distinction matters for where the fix goes. There was nothing to correct in
+the cost; the fix is to stop dividing by a span too short to divide by.
+
+### Why §17's gate did not catch it
+
+§17 hit this exact shape — *"a 1h57m lockout forecast 151 hours out, off a burn
+rate measured minutes into a fresh window"* — and responded by raising the bar
+the **forecast** had to clear: consequential (≥2h blocked), and near or large.
+That is a real fix and it holds. But it treated a bad *number* as a
+prominence problem. The rate kept diverging; §17 only made it harder to hear,
+and this case cleared the higher bar anyway — 3.67h blocked, cap 1.2h out.
+
+The weekly buckets already had the right idea and it never propagated: they
+switched to a duty-cycle "week average" precisely because extrapolating a
+trailing rate over a long horizon is unsound. The 5h window kept the trailing
+rate — correctly, a 5-hour horizon *does* make "you will keep going" fair — but
+nobody asked whether the trailing rate was measured over enough time to be one.
+
+### Fix
+
+- **`BURN_MIN_SPAN_MINUTES = 5`** floors the denominator. The numerator stays the
+  observed span so a burst 25 minutes in is still not diluted by the quiet 25 —
+  the floor only stops one turn becoming an hourly rate. Post-fix the same eight
+  turns forecast 6h 01m → 4h 04m and promote **zero** times.
+- **`PROMOTE_MIN_BURN_SPAN_MINUTES = 10` / `PROMOTE_MIN_BURN_TURNS = 3`** gate
+  *promotion* on the sample being measured, not merely computable. Both are
+  required: 40 turns in 90 seconds is a burst, 2 turns over 20 minutes is noise.
+- Demoted, never suppressed — it falls to the quiet `Heads-up:` line §17 already
+  built for a real-but-small lockout.
+- **Gated on the 5h window only.** The weekly buckets run on a week average whose
+  span is never in doubt; gating them here would suppress a real multi-day
+  lockout. There is a test for that, because it is the obvious way to get this
+  wrong.
+- `state["burn"]` now carries `span_seconds` / `turns` / `floored` /
+  `measurable`, and the label stops claiming 30 minutes it did not have:
+  `(only 14s/1 turns — extrapolated)`.
+
+### Rules this yields
+
+- **Gating a signal is not fixing it.** §17 raised the bar for a number it left
+  broken. Ask which one you are doing — a louder gate on a diverging estimate
+  just moves the false positive.
+- **A rate needs a span, and the span belongs in the label.** Any `x/elapsed`
+  where `elapsed` can approach zero needs a floor, and any figure printed with a
+  window it did not actually measure is a stale doc with a different file
+  extension.
+- **A cost can be real, correctly measured, and still the wrong input.** Three
+  prior findings trained this codebase to look for a missing field. This one had
+  none — the sample was unrepresentative, not incorrect.
+- **The first turn after a resume is the worst turn to learn anything from,** and
+  it is the only turn available at exactly the moment the block wants to advise.
+- **The user's report was diagnostic even though its stated reason was wrong.**
+  "There is no burn rate yet" was a claim about the sample, not the spend, and
+  the sample was the defect.

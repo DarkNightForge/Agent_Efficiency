@@ -709,3 +709,81 @@ class UnpricedModelTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ThinBurnSampleTest(unittest.TestCase):
+    """FINDINGS 35: a lockout forecast may not lead the block off two turns.
+
+    Observed live 2026-08-22, replayed from the real cache: a resumed session's
+    first turn cost $2.89 -- 68% of the whole window -- because a resume writes
+    its cache prefix instead of reading it. Divided by a 14-second span that
+    annualised to $173/h and promoted a 1h12m lockout. Turn by turn, the
+    pre-fix arithmetic promoted on 8 of the window's first 8 turns.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.ub = load_module(Path(self.tmp.name))
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def state(self, span_s, turns, bucket="5h window"):
+        return {
+            "session": session(), "weekly": weekly(1500.0),
+            "burn_usd_per_hour": 90.0, "posture": "balanced",
+            "burn": {
+                "span_seconds": span_s, "turns": turns, "window_minutes": 30,
+                "floored": span_s < self.ub.BURN_MIN_SPAN_MINUTES * 60,
+                "measurable": (
+                    span_s >= self.ub.PROMOTE_MIN_BURN_SPAN_MINUTES * 60
+                    and turns >= self.ub.PROMOTE_MIN_BURN_TURNS),
+            },
+            "binding": {"bucket": bucket, "hours_to_cap": 1.2,
+                        "hours_to_reset": 4.87, "blocked_hours": 3.67},
+        }
+
+    def test_a_fresh_window_does_not_open_the_reply(self):
+        out = self.ub.render_inject(self.state(14, 1))
+        self.assertNotIn("WOULD RUN OUT", out)
+
+    def test_but_it_is_still_reported_quietly(self):
+        """Demote, never suppress -- the lockout may yet be real."""
+        out = self.ub.render_inject(self.state(14, 1))
+        self.assertIn("Heads-up:", out)
+        self.assertIn("would cap in", out)
+
+    def test_the_label_admits_the_sample_is_extrapolated(self):
+        out = self.ub.render_inject(self.state(14, 1))
+        self.assertNotIn("(last 30m)", out)
+        self.assertIn("extrapolated", out)
+
+    def test_a_measured_sample_still_promotes(self):
+        """The gate must not silence a lockout that IS measured."""
+        out = self.ub.render_inject(self.state(22 * 60, 40))
+        self.assertIn("WOULD RUN OUT", out)
+
+    def test_turn_count_alone_is_not_enough(self):
+        """40 turns in 90 seconds is a burst, not a five-hour trend."""
+        out = self.ub.render_inject(self.state(90, 40))
+        self.assertNotIn("WOULD RUN OUT", out)
+
+    def test_span_alone_is_not_enough(self):
+        out = self.ub.render_inject(self.state(20 * 60, 2))
+        self.assertNotIn("WOULD RUN OUT", out)
+
+    def test_the_weekly_bucket_is_never_gated_on_this(self):
+        """The week runs on a week average; its span is never in doubt. Gating
+        it on the trailing sample would suppress a real multi-day lockout."""
+        st = self.state(14, 1, bucket="week")
+        st["binding"]["blocked_hours"] = 129.3
+        st["binding"]["hours_to_reset"] = 132.0
+        st["pace"] = self.ub._pace(st["weekly"], WK + 1.5 * DAY)
+        self.assertIn("WOULD RUN OUT", self.ub.render_inject(st))
+
+    def test_state_without_a_burn_block_is_not_gated(self):
+        """Forward compatibility: an older state.json has no evidence of
+        thinness, so it must behave exactly as it did before."""
+        st = self.state(14, 1)
+        del st["burn"]
+        self.assertIn("WOULD RUN OUT", self.ub.render_inject(st))

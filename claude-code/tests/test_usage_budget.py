@@ -1313,5 +1313,63 @@ class TestAnalyze(TempEnv):
         self.assertIn("FINDINGS 32", out)
 
 
+# ---------------------------------------------------------------------------
+# FINDINGS section 35 -- a rate needs a span
+# ---------------------------------------------------------------------------
+
+class TestBurnSampleSpan(TempEnv):
+    """The trailing rate divides by the observed span, which can be seconds.
+
+    Real numbers, from the live cache for the 5h window opened 2026-08-22
+    10:07:51: the resume turn cost $2.89 and the next landed 14 seconds later.
+    """
+
+    RESUME = 2.8924
+
+    def test_one_turn_is_not_an_hourly_rate(self):
+        now = time.time()
+        rate, span, turns = self.ub._burn_sample([[now - 14, self.RESUME, "m"]], now)
+        self.assertEqual(turns, 1)
+        self.assertLess(span, 60)
+        # Dividing by the true 14s span gives $744/h; the old 1-minute floor
+        # gave $173/h. Both are a single turn wearing a per-hour costume.
+        self.assertLess(rate, 40.0, "one turn must not annualise")
+        self.assertAlmostEqual(
+            rate, self.RESUME / (self.ub.BURN_MIN_SPAN_MINUTES / 60.0), places=4)
+
+    def test_the_floor_is_reported_so_callers_can_see_it(self):
+        now = time.time()
+        _, span, _ = self.ub._burn_sample([[now - 14, self.RESUME, "m"]], now)
+        st = self.ub._build_state([[now - 14, self.RESUME, "m", "id1"]])
+        self.assertTrue(st["burn"]["floored"])
+        self.assertFalse(st["burn"]["measurable"])
+        self.assertEqual(st["burn"]["turns"], 1)
+
+    def test_a_real_burst_is_still_measured_at_full_strength(self):
+        """The floor must not dampen a rate that has a genuine span behind it --
+        that would trade a false alarm for a missed wall."""
+        now = time.time()
+        burst = [[now - 60 * i, 20.0, "claude-opus-5"] for i in range(1, 31)]
+        rate, span, turns = self.ub._burn_sample(sorted(burst), now)
+        self.assertGreater(span, 25 * 60)
+        self.assertGreater(rate, 500, "$600 over 30m is still a huge real rate")
+        self.assertTrue(self.ub._build_state(
+            [[e[0], e[1], e[2], f"m{i}"] for i, e in enumerate(burst)]
+        )["burn"]["measurable"])
+
+    def test_the_denominator_is_the_span_not_the_whole_window(self):
+        """Idle 25 minutes then burn for 5: the rate must reflect the burn, or a
+        real spike hides behind the quiet stretch that preceded it."""
+        now = time.time()
+        ev = [[now - 60 * i, 10.0, "m"] for i in range(1, 6)]
+        rate, span, _ = self.ub._burn_sample(sorted(ev), now)
+        self.assertLess(span, 6 * 60)
+        self.assertGreater(rate, 500, "5 minutes of $50 is $600/h, not $100/h")
+
+    def test_burn_rate_keeps_its_float_signature(self):
+        now = time.time()
+        self.assertIsInstance(self.ub._burn_rate([[now - 30, 1.0, "m"]], now), float)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

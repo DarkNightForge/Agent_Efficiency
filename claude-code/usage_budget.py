@@ -129,6 +129,29 @@ PROMOTE_MIN_BLOCKED_HOURS = 2.0
 # cap was 56 hours out. The test suite caught it.
 PROMOTE_MAX_HORIZON_HOURS = 24.0
 PROMOTE_ALWAYS_BLOCKED_HOURS = 6.0
+# The gate above fixed WHEN a lockout forecast may lead the block. It did not
+# fix the forecast. The 5h window is still projected off the trailing rate (by
+# design -- a 5-hour horizon makes "you will keep going at this rate" fair), and
+# that rate divides trailing spend by the time from its FIRST event to now,
+# floored at one minute. So two turns 38 seconds apart annualised to $197/h and
+# promoted a 1h05m lockout, live, on 2026-08-22. Measured from the cache: the
+# window's first turn was a session RESUME costing $2.89 -- 68% of the window's
+# entire spend -- because a resumed turn writes its whole cache prefix instead of
+# reading it (§25). That turn is the most expensive of the session and is
+# guaranteed not to recur, and it lands when the sample is one turn wide. The
+# promoted directive was therefore MOST likely to fire in the first two minutes
+# of a resumed session -- precisely when the user can see the forecast is absurd,
+# which is the credibility §17 spent an A/B on.
+# A rate is only a rate over a span. Floor the denominator: short enough to stay
+# responsive to a genuine burst, long enough that one turn is not an hourly rate.
+BURN_WINDOW_MINUTES = 30
+BURN_MIN_SPAN_MINUTES = 5
+# And leading the block needs the forecast to be MEASURED, not merely computable.
+# Below this the trailing rate is a couple of turns wide, so the lockout falls
+# back to the quiet Heads-up line rather than opening the reply. Demote, never
+# suppress -- same treatment §17 gave a real-but-small lockout.
+PROMOTE_MIN_BURN_SPAN_MINUTES = 10
+PROMOTE_MIN_BURN_TURNS = 3
 # Re-fire the promoted directive only when it says something new. Without this
 # it leads EVERY turn with the same sentence -- which is the failure the ask gate
 # already avoids, and which was observed live across four consecutive replies.
@@ -929,22 +952,49 @@ def _session_windows(events: list, hours: int, anchor: float | None = None) -> l
     return windows
 
 
-def _burn_rate(events: list, now: float, minutes: int = 30,
-               models: set | None = None) -> float:
-    """USD/hour over the trailing `minutes`. Drives the exhaustion forecast.
+def _burn_sample(events: list, now: float, minutes: int = BURN_WINDOW_MINUTES,
+                 models: set | None = None) -> tuple[float, float, int]:
+    """(usd_per_hour, span_seconds, turns) over the trailing `minutes`.
 
     `models` restricts the rate to one limit bucket. A bucket's headroom must be
     forecast against its OWN burn: premium-model spend is a fraction of the
     total, so charging it the all-models rate would predict exhaustion that
     never arrives, and the reverse when a session goes premium-heavy.
+
+    The denominator is the OBSERVED span -- first event to now -- so a burst that
+    starts 25 minutes into the sample is not diluted by the quiet 25. But it is
+    floored at BURN_MIN_SPAN_MINUTES, because dividing by the true span makes the
+    rate diverge as the span goes to zero: one $2.89 resume turn 14 seconds ago
+    is $744/h on the arithmetic and tells you nothing about the next five hours.
+    The span is returned alongside so callers can tell a measured rate from an
+    extrapolated one -- the number alone cannot carry that.
     """
     since = now - minutes * 60
     recent = [e for e in events if e[0] >= since and (models is None or e[2] in models)]
     if not recent:
-        return 0.0
+        return 0.0, 0.0, 0
     total = sum(e[1] for e in recent)
-    elapsed_h = max((now - min(e[0] for e in recent)) / 3600.0, 1 / 60.0)
-    return total / elapsed_h
+    span = max(0.0, now - min(e[0] for e in recent))
+    elapsed_h = max(span, BURN_MIN_SPAN_MINUTES * 60) / 3600.0
+    return total / elapsed_h, span, len(recent)
+
+
+def _burn_rate(events: list, now: float, minutes: int = BURN_WINDOW_MINUTES,
+               models: set | None = None) -> float:
+    """USD/hour over the trailing `minutes`. Drives the exhaustion forecast."""
+    return _burn_sample(events, now, minutes, models)[0]
+
+
+def _burn_measurable(state: dict) -> bool:
+    """Is the trailing rate wide enough to lead the block with?
+
+    Only the 5h window is forecast off it; the weekly buckets use a week average
+    whose span is never in doubt, so callers must not gate those on this.
+    """
+    b = state.get("burn") or {}
+    if not b:
+        return True  # pre-`burn` state dicts: no evidence of thinness, do not gate
+    return bool(b.get("measurable"))
 
 
 def _premium_models(config: dict) -> set:
@@ -1577,7 +1627,7 @@ def _build_state(events: list) -> dict:
         if e[0] >= wk_start and (wk_end is None or e[0] < wk_end) and e[2] in premium
     )
 
-    burn = _burn_rate(events, now)
+    burn, burn_span, burn_turns = _burn_sample(events, now)
     scap, sconf, sn = _capacity(config, "session")
     wcap, wconf, wn = _capacity(config, "weekly")
     pcap, pconf, pn = _capacity(config, "weekly_premium")
@@ -1626,6 +1676,16 @@ def _build_state(events: list) -> dict:
         "session_anchored": s_anchor is not None,
         "boundary": boundary,
         "burn_usd_per_hour": round(burn, 4),
+        "burn": {
+            "span_seconds": int(burn_span),
+            "turns": burn_turns,
+            "window_minutes": BURN_WINDOW_MINUTES,
+            "floored": burn_span < BURN_MIN_SPAN_MINUTES * 60,
+            "measurable": bool(
+                burn_span >= PROMOTE_MIN_BURN_SPAN_MINUTES * 60
+                and burn_turns >= PROMOTE_MIN_BURN_TURNS
+            ),
+        },
         "recent_windows": [
             {
                 "start": w["start"],
@@ -2704,6 +2764,24 @@ def _compact_ack_gate(advice: dict | None, transcript: str | None) -> bool:
     _save(ACK_PATH, ack)
     return True
 
+def _burn_basis(state: dict) -> str:
+    """How the burn figure was arrived at, in the words the number deserves.
+
+    "(last 30m)" was printed unconditionally, including over a 38-second sample.
+    A label that overstates its own evidence is the same defect as a stale doc:
+    the reader calibrates on it. So say what was actually measured.
+    """
+    b = state.get("burn") or {}
+    span, turns = b.get("span_seconds"), b.get("turns")
+    if not span or not turns:
+        return f"last {b.get('window_minutes', BURN_WINDOW_MINUTES)}m"
+    if b.get("floored"):
+        return f"only {_fmt_dur(span)}/{turns} turns — extrapolated"
+    if not b.get("measurable"):
+        return f"last {_fmt_dur(span)}, {turns} turns — thin"
+    return f"last {_fmt_dur(span)}"
+
+
 def render_inject(state: dict) -> str:
     s = state.get("session") or {}
     w = state.get("weekly") or {}
@@ -2726,6 +2804,11 @@ def render_inject(state: dict) -> str:
         and bind["blocked_hours"] >= PROMOTE_MIN_BLOCKED_HOURS
         and (bind["blocked_hours"] >= PROMOTE_ALWAYS_BLOCKED_HOURS
              or bind["hours_to_cap"] <= PROMOTE_MAX_HORIZON_HOURS)
+        # The 5h window is the only bucket forecast off the trailing rate, so it
+        # is the only one whose promotion depends on that rate being measured
+        # rather than extrapolated from the first turn or two of a window. The
+        # weekly buckets run on a week average and must NOT be gated here.
+        and (bind["bucket"] != "5h window" or _burn_measurable(state))
     )
     if promote:
         lines.append(
@@ -2806,7 +2889,7 @@ def render_inject(state: dict) -> str:
         )
 
     if burn > 0.01:
-        line = f"Burn: ${burn:.2f}/h (last 30m)"
+        line = f"Burn: ${burn:.2f}/h ({_burn_basis(state)})"
         h2e = s.get("hours_to_exhaustion")
         if h2e is not None and resets:
             line += f" → 5h window caps in ~{_fmt_dur(h2e * 3600)}, resets in {_fmt_dur(resets - now)}"
@@ -3167,7 +3250,8 @@ def render_status(state: dict) -> str:
             f"  window resets      {datetime.fromtimestamp(s['resets_at']):%Y-%m-%d %H:%M}"
             f"  (in {_fmt_dur(s['resets_at'] - time.time())})"
         )
-    out.append(f"  burn rate          ${state.get('burn_usd_per_hour', 0):.3f}/h (last 30m)")
+    out.append(f"  burn rate          ${state.get('burn_usd_per_hour', 0):.3f}/h "
+               f"({_burn_basis(state)})")
     if s.get("hours_to_exhaustion") is not None:
         out.append(f"  time to cap        {_fmt_dur(s['hours_to_exhaustion'] * 3600)} at current burn")
     out.append("")
