@@ -384,7 +384,12 @@ PRICES = {
     "claude-opus-4-5":     {"in": 5.00,  "out": 25.00},
     "claude-fable-5":      {"in": 10.00, "out": 50.00},
     "claude-mythos-5":     {"in": 10.00, "out": 50.00},
-    "claude-sonnet-5":     {"in": 3.00,  "out": 15.00},
+    # Sonnet 5 is $2/$10, NOT $3/$15 -- corrected 2026-08-24. The $2/$10 rate began as a
+    # limited-time promo and is now the STANDARD list price (Claude Code 2.1.243 changelog
+    # updated the picker and the bundled claude-api skill to say so). The old value here was
+    # Sonnet 4.6's price, copied down a row. This is a PER-MODEL error, so unlike a constant
+    # scale error the calibration below cannot absorb it -- it shows up as mix-dependent drift.
+    "claude-sonnet-5":     {"in": 2.00,  "out": 10.00},
     "claude-sonnet-4-6":   {"in": 3.00,  "out": 15.00},
     "claude-sonnet-4-5":   {"in": 3.00,  "out": 15.00},
     "claude-haiku-4-5":    {"in": 1.00,  "out": 5.00},
