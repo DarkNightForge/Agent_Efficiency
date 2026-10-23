@@ -390,14 +390,28 @@ METER_SKIP_KINDS = ("spend_limit",)
 # ---------------------------------------------------------------------------
 # Pricing, per million tokens (USD list price).
 #
-# Cache multipliers are relative to that model's input price and are
-# model-independent: 5m write = 1.25x, 1h write = 2.0x, read = 0.1x.
+# Cache multipliers are relative to that model's input price. The write
+# multipliers are model-independent: 5m write = 1.25x, 1h write = 2.0x. Reads are
+# 0.1x except where a PRICES row sets `cread` (0.05x and 0.025x on newer models).
 #
 # We deliberately use STANDARD list price, not promotional/intro pricing --
 # a billing promo shouldn't move a rate-limit weighting, and calibration
 # absorbs any constant scale error anyway.
 # ---------------------------------------------------------------------------
 PRICES = {
+    # Per Anthropic's published table (platform.claude.com/docs/en/about-claude/pricing).
+    # `cread` overrides CACHE_READ_MULT where a model's cache hits are not 0.1x input:
+    # 0.05x on Opus 5.5 and Sonnet 5.5, 0.025x on Fable 5.1 and Mythos 5.1. Fast mode
+    # stacks with the caching multipliers, so the :fast row keeps its model's `cread`.
+    "claude-opus-5-5":      {"in": 4.00,  "out": 20.00, "cread": 0.05},
+    "claude-opus-5-5:fast": {"in": 8.00,  "out": 40.00, "cread": 0.05},
+    "claude-sonnet-5-5":    {"in": 2.00,  "out": 10.00, "cread": 0.05},
+    # Haiku 5.5 is priced by prompt length: a request whose prompt (all input,
+    # cache reads and writes included) is over LONG_PROMPT_TIERS tokens pays the
+    # :long row. _norm_model resolves the tier per request, so aggregates that
+    # sum tokens per model key price each tier at its own rate.
+    "claude-haiku-5-5":      {"in": 0.10, "out": 0.50},
+    "claude-haiku-5-5:long": {"in": 0.50, "out": 2.50},
     "claude-opus-5":       {"in": 5.00,  "out": 25.00},
     "claude-opus-5:fast":  {"in": 10.00, "out": 50.00},
     "claude-opus-4-8":     {"in": 5.00,  "out": 25.00},
@@ -407,15 +421,12 @@ PRICES = {
     "claude-opus-4-5":     {"in": 5.00,  "out": 25.00},
     "claude-fable-5":      {"in": 10.00, "out": 50.00},
     "claude-mythos-5":     {"in": 10.00, "out": 50.00},
-    # The 5.1 pair is $10/$50 in Anthropic's published table
-    # (platform.claude.com/docs/en/about-claude/pricing), the same as their 5.0
-    # predecessors. Absent from this table they took FALLBACK_PRICE ($5/$25),
-    # halving the weight of the two most expensive models on the list. Their cache
-    # hits are $0.25/MTok (0.025x input) where the 5.0 pair's are $1 (0.1x);
-    # CACHE_READ_MULT applies 0.1x to every model, so 5.1 cache reads are
-    # over-weighted here. Not corrected yet.
-    "claude-fable-5-1":    {"in": 10.00, "out": 50.00},
-    "claude-mythos-5-1":   {"in": 10.00, "out": 50.00},
+    # The 5.1 pair is $10/$50, the same as their 5.0 predecessors, but their cache
+    # hits are $0.25/MTok (0.025x input) where the 5.0 pair's are $1 (0.1x).
+    # Absent from this table they took FALLBACK_PRICE ($5/$25), halving the weight
+    # of the two most expensive models on the list.
+    "claude-fable-5-1":    {"in": 10.00, "out": 50.00, "cread": 0.025},
+    "claude-mythos-5-1":   {"in": 10.00, "out": 50.00, "cread": 0.025},
     # Sonnet 5 is $2/$10, NOT $3/$15 -- corrected 2026-08-24. The $2/$10 rate began as a
     # limited-time promo and is now the STANDARD list price (Claude Code 2.1.243 changelog
     # updated the picker and the bundled claude-api skill to say so). The old value here was
@@ -427,6 +438,10 @@ PRICES = {
     "claude-haiku-4-5":    {"in": 1.00,  "out": 5.00},
 }
 FALLBACK_PRICE = {"in": 5.00, "out": 25.00}  # assume Opus-tier if unknown
+# Prompt length above which a model switches to its `:long` PRICES row. The
+# length counts every input token, cache reads and writes included, and each
+# request is priced on its own (the pricing page's long-context section).
+LONG_PROMPT_TIERS = {"claude-haiku-5-5": 100_000}
 
 CACHE_WRITE_5M_MULT = 1.25
 CACHE_WRITE_1H_MULT = 2.00
@@ -434,7 +449,7 @@ CACHE_READ_MULT = 0.10
 WEB_SEARCH_USD = 0.01  # $10 / 1000 requests
 
 
-def _norm_model(model: str | None, speed: str | None) -> str:
+def _norm_model(model: str | None, speed: str | None, usage: dict | None = None) -> str:
     """Normalize a transcript model id to a PRICES key.
 
     Strips context-window suffixes like `[1m]` and appends `:fast` for fast mode,
@@ -457,11 +472,23 @@ def _norm_model(model: str | None, speed: str | None) -> str:
             m = undated
     if speed == "fast" and f"{m}:fast" in PRICES:
         return f"{m}:fast"
+    # A prompt-length tier is a property of the request, so it needs the turn's
+    # `usage`; without one (the quoter prices a hypothetical read) the base row
+    # applies. Strictly over the threshold, per the pricing page.
+    over = LONG_PROMPT_TIERS.get(m)
+    if usage is not None and over is not None and f"{m}:long" in PRICES \
+            and _ctx_tokens(usage) > over:
+        return f"{m}:long"
     return m
 
 
 def _price(model_key: str) -> dict:
     return PRICES.get(model_key, FALLBACK_PRICE)
+
+
+def _cread_mult(model_key: str) -> float:
+    """Cache-read price as a fraction of input, for this model key."""
+    return _price(model_key).get("cread", CACHE_READ_MULT)
 
 
 def _ctx_tokens(usage: dict) -> int:
@@ -518,7 +545,7 @@ def _cost_of(usage: dict, model_key: str) -> float:
     usd = (
         inp * pin
         + out * pout
-        + cread * pin * CACHE_READ_MULT
+        + cread * pin * _cread_mult(model_key)
         + cw5 * pin * CACHE_WRITE_5M_MULT
         + cw1 * pin * CACHE_WRITE_1H_MULT
     ) / 1_000_000.0
@@ -594,7 +621,7 @@ def _calibration_cache_read_share(config: dict) -> float | None:
         total = _window_cost(ws, at + 1)
         if total <= 0:
             continue
-        cread = sum(m["cread"] * _price(mk)["in"] * CACHE_READ_MULT / 1e6
+        cread = sum(m["cread"] * _price(mk)["in"] * _cread_mult(mk) / 1e6
                     for mk, m in mix["models"].items())
         shares.append(cread / total)
     if not shares:
@@ -747,7 +774,7 @@ def _scan_file(path: Path, start_offset: int) -> tuple[list, int]:
             )
         except Exception:
             continue
-        mk = _norm_model(msg.get("model"), usage.get("speed"))
+        mk = _norm_model(msg.get("model"), usage.get("speed"), usage)
         usd = _cost_of(usage, mk)
         if usd <= 0:
             continue
@@ -781,13 +808,26 @@ def _dedupe_events(events: list) -> list:
     return out
 
 
+def _prices_sig() -> str:
+    """A fingerprint of everything that turns tokens into dollars."""
+    import hashlib
+    blob = json.dumps([PRICES, FALLBACK_PRICE, CACHE_WRITE_5M_MULT,
+                       CACHE_WRITE_1H_MULT, CACHE_READ_MULT, LONG_PROMPT_TIERS,
+                       WEB_SEARCH_USD], sort_keys=True)
+    return hashlib.sha256(blob.encode()).hexdigest()[:16]
+
+
 def collect(full: bool = False, verbose: bool = False) -> dict:
     """Rescan transcripts and rebuild state.json."""
     cache = {} if full else _load(CACHE_PATH, {})
     # v2 added the message id to each event. v1 events cannot be deduplicated,
-    # so a stale cache is discarded rather than merged.
-    if cache.get("version") != 2:
-        cache = {"version": 2, "files": {}}
+    # so a stale cache is discarded rather than merged. Each cached event also
+    # carries the cost it was priced at when scanned, so a changed price table
+    # would leave up to RETAIN_DAYS of history at the old rates: a different
+    # fingerprint discards the cache too, and this pass reprices everything.
+    sig = _prices_sig()
+    if cache.get("version") != 2 or cache.get("prices") != sig:
+        cache = {"version": 2, "prices": sig, "files": {}}
     files = cache.setdefault("files", {})
 
     cutoff = time.time() - RETAIN_DAYS * 86400
@@ -1875,7 +1915,7 @@ def _window_cost(start: float, end: float, dedupe: bool = True,
         p = _price(mk)
         total += (m["inp"] * p["in"]
                   + m["out"] * p["out"]
-                  + m["cread"] * p["in"] * CACHE_READ_MULT
+                  + m["cread"] * p["in"] * _cread_mult(mk)
                   + m["cw5"] * p["in"] * CACHE_WRITE_5M_MULT
                   + m["cw1"] * p["in"] * CACHE_WRITE_1H_MULT) / 1e6
     return total
@@ -1931,7 +1971,7 @@ def _window_token_mix(start: float, end: float, dedupe: bool = True) -> dict:
                         continue
                     seen_ids.add(mid)
                 cc = u.get("cache_creation") or {}
-                mk = _norm_model(msg.get("model"), u.get("speed"))
+                mk = _norm_model(msg.get("model"), u.get("speed"), u)
                 m = acc["models"].setdefault(
                     mk, dict(inp=0, out=0, cread=0, cw5=0, cw1=0, turns=0))
                 for key, val in (
@@ -2062,7 +2102,7 @@ def _session_profiles(days: int = 7) -> list:
                     tools = [b.get("name") for b in content
                              if isinstance(b, dict) and b.get("type") == "tool_use"
                              and b.get("name")]
-                mk = _norm_model(msg.get("model"), u.get("speed"))
+                mk = _norm_model(msg.get("model"), u.get("speed"), u)
                 mid = msg.get("id")
                 prev = by_id.get(mid) if mid is not None else None
                 if prev is not None:
@@ -2143,7 +2183,7 @@ def _attribute_context_growth(profiles: list) -> dict:
             if reads <= 0:
                 continue
             pin = _price(turns[i]["model"])["in"]
-            usd = delta * pin * CACHE_READ_MULT * reads / 1_000_000.0
+            usd = delta * pin * _cread_mult(turns[i]["model"]) * reads / 1_000_000.0
             callers = turns[i - 1]["tools"] or ["(conversation)"]
             share = usd / len(callers)
             for name in callers:
@@ -2203,11 +2243,12 @@ def _breakeven_turns(ctx_tokens: int, model_key: str,
     if ctx_tokens <= post_ctx:
         return {"worth_it": False, "turns": None, "per_turn_saving": 0.0,
                 "one_off": 0.0, "post_ctx": post_ctx}
-    one_off = (ctx_tokens * pin * CACHE_READ_MULT
+    cread = _cread_mult(model_key)
+    one_off = (ctx_tokens * pin * cread
                + SUMMARY_TEXT_TOKENS * pout
                + post_ctx * pin * CACHE_WRITE_1H_MULT) / 1_000_000.0
     per_turn_saving = ((ctx_tokens - post_ctx)
-                       * pin * CACHE_READ_MULT) / 1_000_000.0
+                       * pin * cread) / 1_000_000.0
     if per_turn_saving <= 0:
         return {"worth_it": False, "turns": None, "per_turn_saving": 0.0,
                 "one_off": one_off, "post_ctx": post_ctx}
@@ -2322,6 +2363,7 @@ def predict() -> str:
     # as a unit cost (per 1.0 of multiplier) and applied per hypothesis below.
     base = mix["web"] * WEB_SEARCH_USD
     cread_unit = 0.0    # cost per 1.0 of cache-read multiplier
+    cread_a = 0.0       # cache reads at each model's own list multiplier
     for mk, m in mix["models"].items():
         p = _price(mk)
         base += (m["inp"] * p["in"]
@@ -2329,8 +2371,12 @@ def predict() -> str:
                  + m["cw5"] * p["in"] * CACHE_WRITE_5M_MULT
                  + m["cw1"] * p["in"] * CACHE_WRITE_1H_MULT) / 1e6
         cread_unit += m["cread"] * p["in"] / 1e6
+        cread_a += m["cread"] * p["in"] * _cread_mult(mk) / 1e6
+    # Hypothesis A's multiplier as one number: list prices differ per model
+    # (0.05x, 0.025x, 0.1x), so A is their spend-weighted mean on this mix.
+    mult_a = (cread_a / cread_unit) if cread_unit else CACHE_READ_MULT
 
-    cost_a = base + CACHE_READ_MULT * cread_unit
+    cost_a = base + cread_a
     cost_b = base + HYP_CACHE_READ_MULT * cread_unit
     cap_a = s.get("capacity_usd")
 
@@ -2368,10 +2414,10 @@ def predict() -> str:
                    f"({mix['think']/mix['out']*100:.0f}% of output)   "
                    f"effort: {', '.join(f'{k}x{v}' for k, v in sorted(mix['effort'].items()))}")
     if cost_a:
-        out.append(f"  cache reads are {CACHE_READ_MULT*cread_unit/cost_a*100:.0f}% of the "
+        out.append(f"  cache reads are {cread_a/cost_a*100:.0f}% of the "
                    f"price-weighted figure")
     out.append("")
-    out.append(f"  A  price-weighted (cache_read {CACHE_READ_MULT})   "
+    out.append(f"  A  price-weighted (cache_read {mult_a:.3g})   "
                f"cost ${cost_a:.2f}  cap ${cap_a or 0:.0f}  "
                f"→ /usage should say {(cost_a/cap_a*100) if cap_a else 0:.1f}%")
     if cap_b:
@@ -2386,9 +2432,9 @@ def predict() -> str:
     # whenever the current cache-read share matches the share at calibration
     # time. Waiting longer does not help -- only a DIFFERENT token mix does.
     # With f = cache-read share of the price-weighted cost, cost_B/cost_A =
-    # 1 - f*(1 - HYP/CACHE_READ_MULT), so separation is driven by how far f has
+    # 1 - f*(1 - HYP/mult_a), so separation is driven by how far f has
     # moved from its calibration value, not by how much has been spent.
-    f_now = (CACHE_READ_MULT * cread_unit / cost_a) if cost_a else 0.0
+    f_now = (cread_a / cost_a) if cost_a else 0.0
     if cap_a and cap_b:
         pa, pb = cost_a / cap_a * 100, cost_b / cap_b * 100
         gap = abs(pa - pb)
@@ -2396,7 +2442,7 @@ def predict() -> str:
                    + ("  — enough to discriminate" if gap >= 3
                       else "  — cannot discriminate on this token mix"))
         if gap < 3:
-            k = 1 - HYP_CACHE_READ_MULT / CACHE_READ_MULT
+            k = 1 - HYP_CACHE_READ_MULT / mult_a
             r_now = 1 - k * f_now
             # f that would move the prediction by 3 points at the current level
             target_ratio = (pa + 3) / pa if pa > 0.5 else None
@@ -2676,7 +2722,7 @@ def _tail_context(transcript: str | None) -> dict | None:
         ctx = _ctx_tokens(u)
         if ctx <= 0:
             continue
-        return {"ctx": ctx, "model": _norm_model(msg.get("model"), u.get("speed"))}
+        return {"ctx": ctx, "model": _norm_model(msg.get("model"), u.get("speed"), u)}
     return None
 
 
@@ -4094,7 +4140,8 @@ def quote_paths(paths: list, model: str | None = None,
 
     Two costs, because there are two. Landing cost is the one-off cache WRITE
     when the content first enters context. Carry is what it costs on every turn
-    afterwards, re-read as part of the cached prefix at CACHE_READ_MULT. For
+    afterwards, re-read as part of the cached prefix at the model's cache-read
+    multiplier (_cread_mult). For
     anything but a very short session the carry is the larger number, which is
     the whole reason `analyze` exists.
 
@@ -4117,7 +4164,7 @@ def quote_paths(paths: list, model: str | None = None,
     tokens = sum(m["tokens"] for m in ok)
 
     landing = tokens * CACHE_WRITE_5M_MULT * rate
-    carry_per_turn = tokens * CACHE_READ_MULT * rate
+    carry_per_turn = tokens * _cread_mult(model_key) * rate
     total = landing + carry_per_turn * carry_turns
 
     q = {
