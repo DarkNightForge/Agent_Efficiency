@@ -1,0 +1,38 @@
+{
+  "name": "agent-efficiency",
+  "version": "0.4.0+codex.20260902050808",
+  "description": "Apply efficiency modes with live Codex allowance policy and exact turn telemetry.",
+  "author": {
+    "name": "Agent Efficiency contributors"
+  },
+  "homepage": "https://github.com/DarkNightForge/Agent_Efficiency/tree/main/plugins/agent-efficiency",
+  "repository": "https://github.com/DarkNightForge/Agent_Efficiency",
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "productivity",
+    "tokens",
+    "telemetry",
+    "estimation"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Agent Efficiency v0.4",
+    "shortDescription": "Compare task speed, token use, and capacity",
+    "longDescription": "Choose Throughput, Balanced, or Stretch; use live Codex allowance windows; save defaults; and measure completed work.",
+    "developerName": "Agent Efficiency contributors",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Compare all Agent Efficiency modes for this task.",
+      "Run this task using my default efficiency mode.",
+      "Show my Agent Efficiency settings and capacity."
+    ],
+    "brandColor": "#6D5EF5"
+  }
+}

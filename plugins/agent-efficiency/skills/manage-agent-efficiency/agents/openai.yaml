@@ -1,0 +1,7 @@
+interface:
+  display_name: "Agent Efficiency"
+  short_description: "Choose task speed, cost, and efficiency modes"
+  default_prompt: "Use $manage-agent-efficiency to compare modes for this task."
+
+policy:
+  allow_implicit_invocation: true

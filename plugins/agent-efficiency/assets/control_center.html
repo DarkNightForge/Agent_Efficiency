@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Agent Efficiency</title>
+  <style>
+    :root { color-scheme: light dark; --accent:#6d5ef5; --line:color-mix(in srgb,currentColor 16%,transparent); --soft:color-mix(in srgb,var(--accent) 10%,transparent); }
+    * { box-sizing:border-box; }
+    body { margin:0; padding:14px; font:14px/1.42 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:CanvasText; background:Canvas; }
+    .shell { max-width:900px; margin:auto; border:1px solid var(--line); border-radius:18px; overflow:hidden; background:Canvas; }
+    header { padding:18px 18px 14px; background:linear-gradient(135deg,var(--soft),transparent 62%); }
+    h1 { margin:0; font-size:20px; letter-spacing:-.02em; }
+    .eyebrow { color:var(--accent); font-weight:750; font-size:12px; text-transform:uppercase; letter-spacing:.08em; }
+    .task { margin:5px 0 0; opacity:.72; }
+    .toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:end; padding:0 18px 14px; border-bottom:1px solid var(--line); }
+    label { display:grid; gap:4px; font-size:12px; opacity:.85; }
+    select,button { font:inherit; }
+    select { padding:8px 10px; border:1px solid var(--line); border-radius:9px; background:Canvas; color:CanvasText; }
+    .grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; padding:14px 18px; }
+    .card { text-align:left; color:inherit; background:Canvas; border:1px solid var(--line); border-radius:14px; padding:14px; cursor:pointer; transition:.15s ease; }
+    .card:hover { transform:translateY(-1px); border-color:color-mix(in srgb,var(--accent) 55%,var(--line)); }
+    .card.selected { border:2px solid var(--accent); padding:13px; background:var(--soft); }
+    .card h2 { margin:0 0 5px; font-size:16px; }
+    .objective { font-weight:650; margin-bottom:8px; }
+    .behavior,.tradeoff { opacity:.78; font-size:12px; }
+    .metrics { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:12px; }
+    .metric { border:1px solid var(--line); border-radius:9px; padding:8px; background:color-mix(in srgb,Canvas 92%,var(--accent)); }
+    .metric span { display:block; font-size:10px; opacity:.65; text-transform:uppercase; letter-spacing:.05em; }
+    .metric strong { display:block; margin-top:2px; font-size:12px; }
+    .uncalculated { margin-top:12px; font-size:12px; opacity:.58; }
+    .actions { display:flex; flex-wrap:wrap; gap:9px; padding:0 18px 14px; }
+    button.action { border:0; border-radius:10px; padding:9px 13px; cursor:pointer; background:var(--accent); color:white; font-weight:700; }
+    button.secondary { background:transparent; color:CanvasText; border:1px solid var(--line); }
+    button:disabled { opacity:.5; cursor:wait; }
+    .foot { border-top:1px solid var(--line); padding:12px 18px 16px; font-size:11px; opacity:.68; }
+    .status { min-height:18px; padding:0 18px 10px; color:var(--accent); font-weight:650; font-size:12px; }
+    @media (max-width:720px) { .grid { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div class="eyebrow">Mode control center</div>
+      <h1>Agent Efficiency <span id="version">v0.4.0</span></h1>
+      <p class="task" id="task">Current task</p>
+    </header>
+    <section class="toolbar" aria-label="Calculation settings">
+      <label>Calculate
+        <select id="scope"><option value="selected">Selected mode only</option><option value="all">All three modes</option></select>
+      </label>
+      <button class="action secondary" id="recalculate" type="button">Recalculate</button>
+    </section>
+    <div class="status" id="telemetry-status" role="status" aria-live="polite"></div>
+    <section class="grid" id="cards" aria-label="Execution modes"></section>
+    <section class="actions">
+      <button class="action" id="use" type="button">Use selected mode</button>
+      <button class="action secondary" id="save" type="button">Set as default</button>
+    </section>
+    <div class="status" id="status" role="status" aria-live="polite"></div>
+    <footer class="foot" id="disclaimer">Exact messages remaining cannot be calculated because messages do not have a fixed usage cost.</footer>
+  </main>
+  <script>
+    const pending = new Map(); let nextId = 1; let center = null; let selected = "efficiency";
+    const $ = (id) => document.getElementById(id);
+    function request(method, params) {
+      const id = nextId++; window.parent.postMessage({jsonrpc:"2.0",id,method,params},"*");
+      return new Promise((resolve,reject) => pending.set(id,{resolve,reject}));
+    }
+    function extract(value) { return value?.result ?? value?.control_center ?? value; }
+    function metric(label,value) { const box=document.createElement("div"); box.className="metric"; const l=document.createElement("span"); l.textContent=label; const v=document.createElement("strong"); v.textContent=value; box.append(l,v); return box; }
+    function formatNumber(value) { return Number(value).toLocaleString(); }
+    function render(raw) {
+      const next=extract(raw); if (!next?.descriptions) return; center=next; selected=next.selected_mode||selected;
+      $("version").textContent=`v${next.version||"0.4.0"}`; $("task").textContent=next.task_summary||"Current task"; $("scope").value=next.estimate_scope||"selected"; $("disclaimer").textContent=next.disclaimer||"Capacity is an estimate, not a guaranteed message count.";
+      const poll=next.telemetry_status?.rate_limit_poll||{}; const pollError=poll.last_error?.message; $("telemetry-status").textContent=`Rate-limit telemetry: ${poll.status||"not-started"}${pollError?` — ${pollError}`:""}`;
+      const estimates=new Map((next.modes||[]).map(x=>[x.mode,x])); const cards=$("cards"); cards.replaceChildren();
+      for (const info of next.descriptions) {
+        const card=document.createElement("button"); card.type="button"; card.className=`card${info.mode===selected?" selected":""}`; card.dataset.mode=info.mode; card.setAttribute("aria-pressed",String(info.mode===selected));
+        const title=document.createElement("h2"); title.textContent=info.label; const objective=document.createElement("div"); objective.className="objective"; objective.textContent=info.objective; const behavior=document.createElement("div"); behavior.className="behavior"; behavior.textContent=`Performs: ${info.behavior}`; const trade=document.createElement("div"); trade.className="tradeoff"; trade.textContent=`Tradeoff: ${info.tradeoff}`; card.append(title,objective,behavior,trade);
+        const estimate=estimates.get(info.mode);
+        if (estimate) {
+          const metrics=document.createElement("div"); metrics.className="metrics"; const eta=estimate.eta_minutes; const tokens=estimate.estimated_tokens; metrics.append(metric("ETA",`${eta.low}–${eta.high} min`),metric("Tokens",`${formatNumber(tokens.low)}–${formatNumber(tokens.high)}`),metric("Estimate confidence",estimate.confidence||"low"),metric("Calibration",estimate.confidence_basis||"basis unavailable"));
+          const cap=estimate.capacity;
+          if (cap?.available) {
+            const window=cap.windows?.find(x=>x.limit_id===cap.constraining_window)||cap.windows?.[0];
+            const verdict=window?.forecast_verdict?.replaceAll("-"," ")||"forecast unavailable";
+            metrics.append(metric("Tasks left (est.)",`${cap.estimated_remaining.low}–${cap.estimated_remaining.high}`),metric("Capacity confidence",cap.confidence),metric("Usage (measured)",window?`${window.used_percent}% used`:"Unavailable"),metric("Forecast",verdict));
+          } else metrics.append(metric("Tasks left","UNCALIBRATED"),metric("Capacity confidence","low")); card.append(metrics);
+        } else { const note=document.createElement("div"); note.className="uncalculated"; note.textContent="Not calculated — select and recalculate."; card.append(note); }
+        card.onclick=()=>{ selected=info.mode; document.querySelectorAll(".card").forEach(el=>{const active=el.dataset.mode===selected;el.classList.toggle("selected",active);el.setAttribute("aria-pressed",String(active));}); };
+        cards.append(card);
+      }
+    }
+    async function callTool(name,args) {
+      if (window.openai?.callTool) return window.openai.callTool(name,args);
+      return request("tools/call",{name,arguments:args});
+    }
+    async function recalculate() {
+      setBusy(true,"Calculating…"); try { const result=await callTool("show_control_center",{task:center?.task_summary||"Current task",selected_mode:selected,estimate_scope:$("scope").value}); render(result?.structuredContent); $("status").textContent="Estimates updated."; } catch(e) { $("status").textContent="Could not recalculate on this host."; } finally { setBusy(false); }
+    }
+    $("recalculate").onclick=recalculate;
+    $("save").onclick=async()=>{ setBusy(true,"Saving default…"); try { await callTool("update_settings",{default_mode:selected}); $("status").textContent=`${label()} is now the default.`; } catch(e) { $("status").textContent="Could not save the default on this host."; } finally { setBusy(false); } };
+    function label(){ return center?.descriptions?.find(x=>x.mode===selected)?.label||selected; }
+    $("use").onclick=async()=>{ const prompt=`Use Agent Efficiency ${label()} mode for this task.`; setBusy(true,"Applying mode…"); try { if(window.openai?.sendFollowUpMessage) await window.openai.sendFollowUpMessage({prompt}); else await request("ui/message",{role:"user",content:[{type:"text",text:prompt}]}); $("status").textContent=`${label()} selected for this task.`; } catch(e) { $("status").textContent=`Selected ${label()}. Tell Codex to use it if the task does not continue automatically.`; } finally { setBusy(false); } };
+    window.addEventListener("message",(event)=>{ if(event.source!==window.parent)return; const msg=event.data;if(!msg||msg.jsonrpc!=="2.0")return;if(msg.id!==undefined&&pending.has(msg.id)){const p=pending.get(msg.id);pending.delete(msg.id);msg.error?p.reject(msg.error):p.resolve(msg.result);return;}if(msg.method==="ui/notifications/tool-result")render(msg.params?.structuredContent); },{passive:true});
+    if(window.openai?.toolOutput) render(window.openai.toolOutput);
+  </script>
+</body>
+</html>

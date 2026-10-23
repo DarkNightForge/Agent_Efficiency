@@ -1,0 +1,37 @@
+#!/bin/sh
+set -eu
+
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+server="$script_dir/mcp_server.py"
+
+try_python() {
+    if "$@" -c 'import sys; raise SystemExit(0 if sys.version_info.major == 3 else 1)' \
+        >/dev/null 2>&1
+    then
+        exec "$@" "$server"
+    fi
+}
+
+if [ -n "${AGENT_EFFICIENCY_PYTHON:-}" ]; then
+    try_python "$AGENT_EFFICIENCY_PYTHON"
+fi
+
+try_python py -3
+
+runtime_root="${HOME:-}/.cache/codex-runtimes"
+for candidate in \
+    "$runtime_root"/codex-primary-runtime/dependencies/python/python.exe \
+    "$runtime_root"/codex-primary-runtime/dependencies/python/bin/python3 \
+    "$runtime_root"/*/dependencies/python/python.exe \
+    "$runtime_root"/*/dependencies/python/bin/python3
+do
+    if [ -f "$candidate" ]; then
+        try_python "$candidate"
+    fi
+done
+
+try_python python3
+try_python python
+
+echo 'Agent Efficiency needs Python 3. Set AGENT_EFFICIENCY_PYTHON or install Python 3.' >&2
+exit 127

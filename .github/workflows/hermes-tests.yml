@@ -1,0 +1,57 @@
+name: hermes tests
+
+on:
+  push:
+    paths: ['hermes/**', '.github/workflows/hermes-tests.yml']
+  pull_request:
+    paths: ['hermes/**', '.github/workflows/hermes-tests.yml']
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # Same rule as the other two jobs: no install step. This plugin is
+      # dependency-free and the tests are stdlib-only. A `pip install` appearing
+      # here is a red flag.
+      #
+      # The tests self-locate the plugin via Path(__file__).parents[1], so they
+      # run correctly from the repo root without a working-directory setting.
+      - name: Run tests
+        run: python -m unittest discover -s hermes/tests -p "test_*.py" -v
+
+      - name: Check it retracts rather than invents when the meter is unusable
+        run: |
+          # The claude-code job asserts UNCALIBRATED and the codex job asserts the
+          # same for its control center. Hermes reads a live provider meter rather
+          # than calibrating, so its equivalent honesty property is the retraction
+          # path: with no usable snapshot it must emit an UNAVAILABLE block that
+          # explicitly cancels earlier directives, never a fabricated headroom.
+          python - <<'PY'
+          import importlib.util, sys
+          from pathlib import Path
+
+          mod_path = Path("hermes/agent-efficiency/agent_efficiency.py")
+          spec = importlib.util.spec_from_file_location("hermes_ae", mod_path)
+          mod = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(mod)
+
+          block = mod.UsageBudget.unavailable_context("anthropic", "UNAVAILABLE")
+          print(block)
+
+          assert "UNAVAILABLE" in block, "must name the reason"
+          assert "IGNORE ALL EARLIER" in block, "must retract stale directives"
+          assert "no exact headroom" in block, "must not imply headroom it lacks"
+          assert "$" not in block, "must not invent a dollar figure"
+          assert "%" not in block, "must not invent a percentage"
+          PY

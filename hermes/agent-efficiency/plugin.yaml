@@ -1,0 +1,12 @@
+name: agent-efficiency
+version: "0.1.0"
+description: "Inject exact subscription headroom and pacing policy into Hermes turns"
+author: "DarkNightForge"
+provides_hooks:
+  - pre_llm_call
+  - post_llm_call
+  - pre_api_request
+provides_commands:
+  - agent-efficiency
+provides_skills:
+  - usage-budget

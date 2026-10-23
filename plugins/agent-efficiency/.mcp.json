@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "agent-efficiency": {
+      "command": "git",
+      "args": [
+        "--exec-path=./scripts",
+        "agent-efficiency"
+      ],
+      "cwd": "."
+    }
+  }
+}

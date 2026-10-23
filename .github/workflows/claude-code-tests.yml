@@ -1,0 +1,56 @@
+name: claude-code tests
+
+on:
+  push:
+    paths: ['claude-code/**', '.github/workflows/claude-code-tests.yml']
+  pull_request:
+    paths: ['claude-code/**', '.github/workflows/claude-code-tests.yml']
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # No install step on purpose: the tool has zero dependencies and the tests
+      # are stdlib-only. If this ever needs a `pip install`, that is a red flag.
+      - name: Run tests
+        working-directory: claude-code
+        run: python -m unittest discover -s tests -v
+
+      - name: Check the CLI starts and reports honestly with no data
+        working-directory: claude-code
+        env:
+          USAGE_BUDGET_HOME: ${{ runner.temp }}/ub-state
+          CLAUDE_PROJECTS_DIR: ${{ runner.temp }}/ub-projects
+        run: |
+          mkdir -p "$USAGE_BUDGET_HOME" "$CLAUDE_PROJECTS_DIR"
+          python usage_budget.py status
+          # With no transcripts and no calibration it must say UNCALIBRATED
+          # rather than inventing a denominator.
+          python usage_budget.py inject | tee /dev/stderr | grep -q UNCALIBRATED
+
+  windows-test:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run tests
+        working-directory: claude-code
+        run: python -m unittest discover -s tests -v

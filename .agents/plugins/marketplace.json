@@ -1,0 +1,20 @@
+{
+  "name": "agent-efficiency",
+  "interface": {
+    "displayName": "Agent Efficiency"
+  },
+  "plugins": [
+    {
+      "name": "agent-efficiency",
+      "source": {
+        "source": "local",
+        "path": "./plugins/agent-efficiency"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

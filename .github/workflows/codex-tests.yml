@@ -1,0 +1,64 @@
+name: codex tests
+
+on:
+  push:
+    paths: ['codex/**', 'plugins/**', '.github/workflows/codex-tests.yml']
+  pull_request:
+    paths: ['codex/**', 'plugins/**', '.github/workflows/codex-tests.yml']
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # Same rule as the claude-code job: no install step. The plugin is
+      # dependency-free by design and the tests are stdlib-only. A `pip install`
+      # appearing here is a red flag.
+      #
+      # Note the split layout: the implementation lives in plugins/agent-efficiency/
+      # while its tests live in codex/. Both paths trigger this workflow.
+      - name: Run tests
+        run: python -m unittest discover -s codex -p "test_*.py" -v
+
+      - name: Check the control center reports honestly with no usage data
+        env:
+          AGENT_EFFICIENCY_DATA: ${{ runner.temp }}/ae-state
+        run: |
+          mkdir -p "$AGENT_EFFICIENCY_DATA"
+          # With no ingested rate-limit snapshot, capacity must read UNCALIBRATED
+          # rather than inventing a denominator -- the same honesty property the
+          # claude-code job asserts. The MCP process normally feeds this state;
+          # this isolated CLI smoke test intentionally starts without that process.
+          python plugins/agent-efficiency/scripts/agent_efficiency.py \
+            control-center "ci smoke test" --scope all --complexity moderate \
+            | tee /dev/stderr | grep -q UNCALIBRATED
+
+      - name: Run behavioral policy fixtures
+        run: python codex/evals/run_evals.py
+
+  windows-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run tests
+        run: python -m unittest discover -s codex -p "test_*.py" -v
+      - name: Verify plugin structure and Windows launcher
+        shell: pwsh
+        env:
+          AGENT_EFFICIENCY_DATA: ${{ runner.temp }}\ae-state
+        run: |
+          python plugins/agent-efficiency/scripts/agent_efficiency.py --json verify
+          & plugins/agent-efficiency/scripts/launch_python.ps1 plugins/agent-efficiency/scripts/agent_efficiency.py --json verify
