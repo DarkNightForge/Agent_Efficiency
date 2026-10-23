@@ -407,6 +407,15 @@ PRICES = {
     "claude-opus-4-5":     {"in": 5.00,  "out": 25.00},
     "claude-fable-5":      {"in": 10.00, "out": 50.00},
     "claude-mythos-5":     {"in": 10.00, "out": 50.00},
+    # The 5.1 pair is $10/$50 in Anthropic's published table
+    # (platform.claude.com/docs/en/about-claude/pricing), the same as their 5.0
+    # predecessors. Absent from this table they took FALLBACK_PRICE ($5/$25),
+    # halving the weight of the two most expensive models on the list. Their cache
+    # hits are $0.25/MTok (0.025x input) where the 5.0 pair's are $1 (0.1x);
+    # CACHE_READ_MULT applies 0.1x to every model, so 5.1 cache reads are
+    # over-weighted here. Not corrected yet.
+    "claude-fable-5-1":    {"in": 10.00, "out": 50.00},
+    "claude-mythos-5-1":   {"in": 10.00, "out": 50.00},
     # Sonnet 5 is $2/$10, NOT $3/$15 -- corrected 2026-08-24. The $2/$10 rate began as a
     # limited-time promo and is now the STANDARD list price (Claude Code 2.1.243 changelog
     # updated the picker and the bundled claude-api skill to say so). The old value here was
