@@ -97,6 +97,17 @@ Notes that matter:
 
 ## 3. The cost formula, validated to the cent
 
+> ⚠️ **SUPERSEDED 2026-10-22, the cache-read constant only.** Cache reads are not
+> model-independent on newer models: [Anthropic's pricing table](https://platform.claude.com/docs/en/about-claude/pricing) puts them at
+> 0.05x input on Opus 5.5 and Sonnet 5.5, and 0.025x on Fable 5.1 and Mythos 5.1.
+> Haiku 5.5 also switches to a higher price row for a request whose prompt is over
+> 100,000 tokens. The validation below, on `claude-opus-5`, stands.
+>
+> | §3 says | Reality |
+> |---|---|
+> | `cache_read * Pin * 0.10`, multipliers model-independent | `cache_read * Pin * Cread`, with `Cread` per model (`cread` in `PRICES`); the write multipliers are still model-independent |
+> | Only `Pin`/`Pout` vary by model | They also vary by prompt length on Haiku 5.5 (the `:long` row) |
+
 ```
 usd = ( input            * Pin
       + output           * Pout
@@ -881,7 +892,7 @@ territory.
 | Weekly cap resets "at a fixed day and time assigned to your account" | same articles |
 | Claude Code and claude.ai chat share the same limits | support.claude.com 11145838 |
 | Fable 5 draws from the shared weekly, "faster than other Claude models"; Max could allocate up to 50% to it | support.claude.com 15424964 |
-| Cache multipliers: input 1.0x · 5m write 1.25x · 1h write 2.0x · read 0.1x | platform.claude.com prompt-caching docs |
+| Cache multipliers: input 1.0x · 5m write 1.25x · 1h write 2.0x · read 0.1x (0.05x on Opus 5.5 and Sonnet 5.5, 0.025x on Fable 5.1 and Mythos 5.1) | platform.claude.com prompt-caching docs; pricing page |
 | Thinking tokens billed inside output at the same rate | platform.claude.com extended-thinking docs |
 | Plan tiers: Pro $20 / Max 5x $100 / Max 20x $200 — relative multipliers only | claude.com/pricing, support 11049762 |
 | Overage: optional usage credits at standard API rates after plan limits | plan articles |

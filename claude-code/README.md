@@ -170,13 +170,18 @@ way pricing does.
 Spend is expressed as list-price-equivalent USD:
 
 ```
-usd = (input*Pin + output*Pout + cache_read*Pin*0.10
+usd = (input*Pin + output*Pout + cache_read*Pin*Cread
        + cache_write_5m*Pin*1.25 + cache_write_1h*Pin*2.00) / 1e6
       + web_search_requests * 0.01
 ```
 
-Cache multipliers are model-independent, so only the per-model input/output prices
-vary (Opus 5 `$5/$25`, fast mode `$10/$50`, Sonnet 5 `$3/$15`, Haiku 4.5 `$1/$5`).
+The cache-write multipliers are model-independent. `Cread` is 0.1x on most models,
+0.05x on Opus 5.5 and Sonnet 5.5, and 0.025x on Fable 5.1 and Mythos 5.1. Input and
+output prices are per model, from [Anthropic's pricing table](https://platform.claude.com/docs/en/about-claude/pricing): Opus 5.5
+`$4/$20` (fast `$8/$40`), Opus 5 `$5/$25` (fast `$10/$50`), Sonnet 5.5 and Sonnet 5
+`$2/$10`, Fable 5 and 5.1 `$10/$50`, Haiku 4.5 `$1/$5`. Haiku 5.5 is `$0.10/$0.50`, or
+`$0.50/$2.50` for a request whose prompt (cache reads and writes included) is over
+100,000 tokens.
 Standard list price is used, not promotional pricing — a billing promo shouldn't
 move a rate-limit weighting, and calibration absorbs any constant scale error.
 
@@ -419,7 +424,7 @@ directions.
 ## Tests
 
 ```bash
-python3 -m unittest discover -s tests -v     # 350 tests, ~2s, stdlib only
+python3 -m unittest discover -s tests -v     # 365 tests, ~2s, stdlib only
 ```
 
 Every empirical claim in [`../docs/FINDINGS.md`](../docs/FINDINGS.md) has a test
