@@ -69,7 +69,7 @@ This is the most valuable file in the repo and the most contended. Rules:
   cd ..          && python -m unittest discover -s hermes/tests -p "test_*.py"
   ```
   All three must be green regardless of which half you changed — there are three
-  suites and three CI workflows, not two. Currently **434 tests** (337 claude-code
+  suites and three CI workflows, not two. Currently **447 tests** (350 claude-code
   + 71 codex + 26 hermes), plus 12 behavioural evals (`claude-code/evals/`, not in
   the unit run).
 - Deleting a rebase-merged branch: `git branch -d` will refuse it, because the replayed commits have new hashes and the tip is no longer an ancestor. Verify with `git cherry main <branch>` — a `-` on every line means the content is upstream and `-D` is safe.
