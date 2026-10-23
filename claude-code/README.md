@@ -419,7 +419,7 @@ directions.
 ## Tests
 
 ```bash
-python3 -m unittest discover -s tests -v     # 337 tests, ~2s, stdlib only
+python3 -m unittest discover -s tests -v     # 350 tests, ~2s, stdlib only
 ```
 
 Every empirical claim in [`../docs/FINDINGS.md`](../docs/FINDINGS.md) has a test
