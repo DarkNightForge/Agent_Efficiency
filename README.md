@@ -346,8 +346,8 @@ usage-budget verify        # exits 0 only when the next turn gets a real block
 
 Co-authored by:
 
-- **[@DarkNightForge](https://github.com/DarkNightForge)** — project, `claude-code/`, `docs/FINDINGS.md`
-- **[@Eclipse1231317](https://github.com/Eclipse1231317)** — `codex/`
+- **[@DarkNightForge](https://github.com/DarkNightForge)** — project, `claude-code/`, `hermes/`, `docs/FINDINGS.md`
+- **[@Eclipse1231317](https://github.com/Eclipse1231317)** — the Codex implementation: `plugins/agent-efficiency/` and `codex/`
 
 ## Contributing
 
