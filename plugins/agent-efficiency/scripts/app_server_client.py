@@ -11,6 +11,15 @@ import time
 from typing import Any
 
 
+MAX_APP_SERVER_LINE_BYTES = 1 * 1024 * 1024
+MAX_APP_SERVER_OUTPUT_BYTES = 2 * 1024 * 1024
+MAX_APP_SERVER_MESSAGES = 128
+
+
+class AppServerOutputLimitError(RuntimeError):
+    """Raised when the local App Server exceeds the bounded protocol budget."""
+
+
 def read_rate_limits(executable: str, *, timeout: float, version: str) -> dict[str, Any]:
     """Initialize App Server, then read its authoritative allowance snapshot."""
 
@@ -21,21 +30,37 @@ def read_rate_limits(executable: str, *, timeout: float, version: str) -> dict[s
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
-            text=True,
-            bufsize=1,
+            text=False,
+            bufsize=0,
+            shell=False,
         )
     except OSError as exc:
         raise RuntimeError(f"Codex App Server rate-limit read failed: {exc}") from exc
 
-    inbox: queue.Queue[str | None] = queue.Queue()
+    inbox: queue.Queue[bytes | Exception | None] = queue.Queue(maxsize=MAX_APP_SERVER_MESSAGES)
 
     def consume_stdout() -> None:
         assert process.stdout is not None
+        total = 0
+        messages = 0
         try:
-            for raw in process.stdout:
+            while True:
+                raw = process.stdout.readline(MAX_APP_SERVER_LINE_BYTES + 1)
+                if not raw:
+                    break
+                total += len(raw)
+                messages += 1
+                if (
+                    len(raw) > MAX_APP_SERVER_LINE_BYTES
+                    or total > MAX_APP_SERVER_OUTPUT_BYTES
+                    or messages > MAX_APP_SERVER_MESSAGES - 1
+                ):
+                    inbox.put(AppServerOutputLimitError("Codex App Server output exceeded its safety limit"))
+                    return
                 inbox.put(raw)
         finally:
-            inbox.put(None)
+            with contextlib.suppress(queue.Full):
+                inbox.put_nowait(None)
 
     reader = threading.Thread(target=consume_stdout, name="agent-efficiency-app-server", daemon=True)
     reader.start()
@@ -43,7 +68,7 @@ def read_rate_limits(executable: str, *, timeout: float, version: str) -> dict[s
     def send(message: dict[str, Any]) -> None:
         if process.stdin is None:
             raise RuntimeError("Codex App Server stdin is unavailable")
-        process.stdin.write(json.dumps(message, separators=(",", ":")) + "\n")
+        process.stdin.write((json.dumps(message, separators=(",", ":")) + "\n").encode("utf-8"))
         process.stdin.flush()
 
     try:
@@ -75,16 +100,19 @@ def read_rate_limits(executable: str, *, timeout: float, version: str) -> dict[s
         try:
             process.wait(timeout=0.5)
         except subprocess.TimeoutExpired:
-            process.terminate()
+            with contextlib.suppress(OSError):
+                process.terminate()
             try:
                 process.wait(timeout=0.5)
             except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait(timeout=0.5)
+                with contextlib.suppress(OSError):
+                    process.kill()
+                with contextlib.suppress(OSError, subprocess.TimeoutExpired):
+                    process.wait(timeout=0.5)
 
 
 def _await_response(
-    inbox: queue.Queue[str | None],
+    inbox: queue.Queue[bytes | Exception | None],
     *,
     request_id: int,
     deadline: float,
@@ -99,6 +127,8 @@ def _await_response(
             raise RuntimeError(f"Codex App Server timed out waiting for response {request_id}") from exc
         if raw is None:
             raise RuntimeError(f"Codex App Server exited before response {request_id}")
+        if isinstance(raw, Exception):
+            raise raw
         try:
             message = json.loads(raw)
         except json.JSONDecodeError:

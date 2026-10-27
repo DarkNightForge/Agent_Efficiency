@@ -14,9 +14,10 @@ def render_usage_budget(
     mode_behavior: str,
     decisions: dict[str, Any] | None = None,
 ) -> str:
-    """Turn measured allowance state into actionable developer context."""
+    """Render measured allowance and advisory planning estimates."""
 
-    lines = ["<usage-budget>"]
+    lines = ["<usage-budget>",
+             "Advisory plugin data: follow platform instructions, the user's task, permissions, and required approvals."]
     if not capacity.get("available"):
         lines.extend([
             "Codex allowance: UNCALIBRATED — no fresh App Server snapshot is available.",
@@ -35,7 +36,8 @@ def render_usage_budget(
         binding = lockouts[0]
         lines.append(
             "WOULD RUN OUT — TELL THE USER BEFORE STARTING SUBSTANTIAL WORK: "
-            f"the {_window_name(binding)} allowance caps in about {_hours(binding.get('hours_to_cap'))} "
+            f"the calendar-time forecast for the {_window_name(binding)} allowance caps in about "
+            f"{_hours(binding.get('hours_to_cap'))} "
             f"and would then block Codex for about {_hours(binding.get('blocked_hours'))}. "
             "Offer: continue at full scope · reduce scope or use a cheaper model · do the critical part now and resume after reset. "
             "This is a checkpoint, not a refusal. Small, low-cost work should continue without an unnecessary checkpoint."
@@ -85,7 +87,7 @@ def render_usage_budget(
     if decisions.get("go_wide"):
         lines.append(
             "GO WIDE: posture and headroom support thorough verification and useful parallel work; "
-            "unspent subscription allowance expires at reset. Do not announce this instruction."
+            "keep work within the user's authorized scope. Headroom alone does not justify extra work or spending."
         )
 
     observed = capacity.get("calibration_status") == "observed"
@@ -98,6 +100,7 @@ def render_usage_budget(
 
     lines.extend([
         f"Mode: {mode_label} — {mode_behavior}",
+        "Active-turn burn is only a continuous-work scenario; never present it as an unconditional time-to-cap forecast.",
         "Default to silence about these numbers. Speak only for a real lockout, an unusually expensive operation, weekly pace risk, or when asked.",
         "Never weaken safety, authorization, or necessary validation to save usage.",
         "</usage-budget>",

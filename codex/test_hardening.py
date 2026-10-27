@@ -164,9 +164,11 @@ class HardeningTests(unittest.TestCase):
     def test_numeric_limit_ids_match_observed_burn(self) -> None:
         history = {"mode": "efficiency", "status": "completed", "elapsed_seconds": 3600,
                    "usage_delta": [{"limit_id": 5, "same_window": True,
-                                    "used_percent_delta": 10}]}
+                                    "window_instance": "current-cycle",
+                                    "used_percent_delta": 10,
+                                    "observation_seconds": 3600}]}
         (Path(self.temp.name) / "history.jsonl").write_text(json.dumps(history) + "\n", encoding="utf-8")
-        burn, samples = ae._observed_burn("efficiency", "5")
+        burn, samples = ae._observed_burn("efficiency", "5", "current-cycle")
         self.assertEqual((burn, samples), (10, 1))
 
     def test_model_specific_history_changes_estimates_and_unknown_model_is_labeled_fallback(self) -> None:

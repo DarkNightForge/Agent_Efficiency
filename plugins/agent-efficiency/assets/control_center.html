@@ -35,14 +35,18 @@
     button:disabled { opacity:.5; cursor:wait; }
     .foot { border-top:1px solid var(--line); padding:12px 18px 16px; font-size:11px; opacity:.68; }
     .status { min-height:18px; padding:0 18px 10px; color:var(--accent); font-weight:650; font-size:12px; }
-    @media (max-width:720px) { .grid { grid-template-columns:1fr; } }
+    .security { margin:0 18px 2px; padding:11px 12px; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; border:1px solid var(--line); border-radius:12px; background:var(--soft); }
+    .security strong,.security span { display:block; }
+    .security strong { font-size:11px; }
+    .security span { margin-top:2px; font-size:11px; opacity:.72; }
+    @media (max-width:720px) { .grid,.security { grid-template-columns:1fr; } }
   </style>
 </head>
 <body>
   <main class="shell">
     <header>
       <div class="eyebrow">Mode control center</div>
-      <h1>Agent Efficiency <span id="version">v0.4.0</span></h1>
+      <h1>Agent Efficiency <span id="version">v0.5.0</span></h1>
       <p class="task" id="task">Current task</p>
     </header>
     <section class="toolbar" aria-label="Calculation settings">
@@ -52,6 +56,11 @@
       <button class="action secondary" id="recalculate" type="button">Recalculate</button>
     </section>
     <div class="status" id="telemetry-status" role="status" aria-live="polite"></div>
+    <section class="security" aria-label="Security and privacy">
+      <div><strong>Security &amp; Privacy</strong><span id="security-status">Checking safeguards…</span></div>
+      <div><strong>Local storage</strong><span id="storage-status">Dedicated plugin state only</span></div>
+      <div><strong>Retention</strong><span id="retention-status">Bounded measurement history</span></div>
+    </section>
     <section class="grid" id="cards" aria-label="Execution modes"></section>
     <section class="actions">
       <button class="action" id="use" type="button">Use selected mode</button>
@@ -59,24 +68,70 @@
     </section>
     <div class="status" id="status" role="status" aria-live="polite"></div>
     <footer class="foot" id="disclaimer">Exact messages remaining cannot be calculated because messages do not have a fixed usage cost.</footer>
+    <p class="foot">Recalculate can refresh account usage through Codex and save local state. Set as default saves a preference; Use selected mode sends a one-task follow-up request. Mode choices remain subject to your task, permissions and required approvals.</p>
   </main>
   <script>
-    const pending = new Map(); let nextId = 1; let center = null; let selected = "efficiency";
+    const pending = new Map(); const inFlight = new Set();
+    const REQUEST_TIMEOUT_MS = 15000;
+    const MODES = new Set(["throughput", "balanced", "stretch"]);
+    let nextId = 1; let center = null; let selected = "balanced"; let busy = false; let closed = false;
     const $ = (id) => document.getElementById(id);
-    function request(method, params) {
-      const id = nextId++; window.parent.postMessage({jsonrpc:"2.0",id,method,params},"*");
-      return new Promise((resolve,reject) => pending.set(id,{resolve,reject}));
+    function failure(code) { const error=new Error(code); error.code=code; return error; }
+    // A timeout restores this UI; it cannot cancel work already accepted by the host.
+    function bounded(start, cleanup=()=>{}) {
+      if (closed) return Promise.reject(failure("closed"));
+      return new Promise((resolve,reject)=>{
+        let settled=false;
+        const finish=(ok,value)=>{ if(settled)return; settled=true; clearTimeout(timer); inFlight.delete(cancel); cleanup(); (ok?resolve:reject)(value); };
+        const cancel=()=>finish(false,failure("closed"));
+        const timer=setTimeout(()=>finish(false,failure("timeout")),REQUEST_TIMEOUT_MS);
+        inFlight.add(cancel);
+        try { start(value=>finish(true,value),error=>finish(false,error)); } catch(error) { finish(false,error); }
+      });
     }
+    function request(method, params) {
+      const id=nextId++;
+      return bounded((resolve,reject)=>{
+        pending.set(id,{resolve,reject});
+        window.parent.postMessage({jsonrpc:"2.0",id,method,params},"*");
+      },()=>pending.delete(id));
+    }
+    function nativeCall(callback) { return bounded((resolve,reject)=>Promise.resolve().then(()=>{if(closed)throw failure("closed");return callback();}).then(resolve,reject)); }
     function extract(value) { return value?.result ?? value?.control_center ?? value; }
+    function toolData(value) { return extract(value?.structuredContent); }
+    function setBusy(value,message) {
+      busy=value;
+      document.querySelectorAll("button,select").forEach(element=>{element.disabled=value||closed;});
+      $("use").disabled=$("save").disabled=value||closed||!center;
+      $("cards").setAttribute("aria-busy",String(value));
+      if(message)$("status").textContent=message;
+    }
+    function showFailure(action,error) {
+      const detail=error?.code==="timeout"?"The host did not respond in time; the outcome is unknown. Check before retrying."
+        :error?.code==="invalid"?"The host returned an invalid response."
+        :error?.code==="closed"?"The control center was closed."
+        :"The host reported an error or does not support this action.";
+      $("status").textContent=`${action} was not confirmed. ${detail}`;
+    }
     function metric(label,value) { const box=document.createElement("div"); box.className="metric"; const l=document.createElement("span"); l.textContent=label; const v=document.createElement("strong"); v.textContent=value; box.append(l,v); return box; }
     function formatNumber(value) { return Number(value).toLocaleString(); }
+    function validRange(value) { return value&&Number.isFinite(value.low)&&Number.isFinite(value.high)&&value.low>=0&&value.high>=value.low; }
     function render(raw) {
-      const next=extract(raw); if (!next?.descriptions) return; center=next; selected=next.selected_mode||selected;
-      $("version").textContent=`v${next.version||"0.4.0"}`; $("task").textContent=next.task_summary||"Current task"; $("scope").value=next.estimate_scope||"selected"; $("disclaimer").textContent=next.disclaimer||"Capacity is an estimate, not a guaranteed message count.";
-      const poll=next.telemetry_status?.rate_limit_poll||{}; const pollError=poll.last_error?.message; $("telemetry-status").textContent=`Rate-limit telemetry: ${poll.status||"not-started"}${pollError?` — ${pollError}`:""}`;
-      const estimates=new Map((next.modes||[]).map(x=>[x.mode,x])); const cards=$("cards"); cards.replaceChildren();
+      if(raw?.isError)throw failure("tool");
+      const next=extract(raw);
+      if(!next||!Array.isArray(next.descriptions)||next.descriptions.length!==3||new Set(next.descriptions.map(info=>info?.mode)).size!==3||!next.descriptions.every(info=>MODES.has(info?.mode)&&typeof info.label==="string")||!MODES.has(next.selected_mode)||!Array.isArray(next.modes))throw failure("invalid");
+      if(new Set(next.modes.map(item=>item?.mode)).size!==next.modes.length||!next.modes.every(item=>
+        MODES.has(item?.mode)&&validRange(item.eta_minutes)&&validRange(item.estimated_tokens)&&
+        (!item.capacity?.available||(validRange(item.capacity.estimated_remaining)&&Array.isArray(item.capacity.windows)&&item.capacity.windows.every(window=>
+          window&&Number.isFinite(window.used_percent)&&(window.forecast_verdict==null||typeof window.forecast_verdict==="string"))
+        ))
+      ))throw failure("invalid");
+      const renderMode=next.selected_mode;
+      // Build the complete replacement before touching the visible selection.
+      // A malformed later card must not mix a partial new view with old actions.
+      const estimates=new Map(next.modes.map(x=>[x.mode,x])); const replacement=[];
       for (const info of next.descriptions) {
-        const card=document.createElement("button"); card.type="button"; card.className=`card${info.mode===selected?" selected":""}`; card.dataset.mode=info.mode; card.setAttribute("aria-pressed",String(info.mode===selected));
+        const card=document.createElement("button"); card.type="button"; card.disabled=busy||closed; card.className=`card${info.mode===renderMode?" selected":""}`; card.dataset.mode=info.mode; card.setAttribute("aria-pressed",String(info.mode===renderMode));
         const title=document.createElement("h2"); title.textContent=info.label; const objective=document.createElement("div"); objective.className="objective"; objective.textContent=info.objective; const behavior=document.createElement("div"); behavior.className="behavior"; behavior.textContent=`Performs: ${info.behavior}`; const trade=document.createElement("div"); trade.className="tradeoff"; trade.textContent=`Tradeoff: ${info.tradeoff}`; card.append(title,objective,behavior,trade);
         const estimate=estimates.get(info.mode);
         if (estimate) {
@@ -88,23 +143,70 @@
             metrics.append(metric("Tasks left (est.)",`${cap.estimated_remaining.low}–${cap.estimated_remaining.high}`),metric("Capacity confidence",cap.confidence),metric("Usage (measured)",window?`${window.used_percent}% used`:"Unavailable"),metric("Forecast",verdict));
           } else metrics.append(metric("Tasks left","UNCALIBRATED"),metric("Capacity confidence","low")); card.append(metrics);
         } else { const note=document.createElement("div"); note.className="uncalculated"; note.textContent="Not calculated — select and recalculate."; card.append(note); }
-        card.onclick=()=>{ selected=info.mode; document.querySelectorAll(".card").forEach(el=>{const active=el.dataset.mode===selected;el.classList.toggle("selected",active);el.setAttribute("aria-pressed",String(active));}); };
-        cards.append(card);
+        card.onclick=()=>{ if(busy||closed)return; selected=info.mode; document.querySelectorAll(".card").forEach(el=>{const active=el.dataset.mode===selected;el.classList.toggle("selected",active);el.setAttribute("aria-pressed",String(active));}); };
+        replacement.push(card);
       }
+      $("cards").replaceChildren(...replacement);
+      $("version").textContent=`v${next.version||"0.5.0"}`; $("task").textContent=next.task_summary||"Current task"; $("scope").value=next.estimate_scope||"selected"; $("disclaimer").textContent=next.disclaimer||"Capacity is an estimate, not a guaranteed message count.";
+      const poll=next.telemetry_status?.rate_limit_poll||{}; const pollError=poll.last_error?.message; $("telemetry-status").textContent=`Rate-limit telemetry: ${poll.status||"not-started"}${pollError?` — ${pollError}`:""}`;
+      const security=next.security||{}; const storage=security.storage||{}; const retention=security.retention||{}; $("security-status").textContent=security.safety_checks_passed?"Local state checks passed":`Attention: ${(security.issues||[]).length} check(s)`; $("storage-status").textContent=`${formatNumber(storage.used_bytes||0)} of ${formatNumber(storage.limit_bytes||0)} bytes`; $("retention-status").textContent=`${formatNumber(retention.history_records||0)} of ${formatNumber(retention.history_record_limit||0)} records`;
+      center=next; selected=renderMode; setBusy(busy);
     }
     async function callTool(name,args) {
-      if (window.openai?.callTool) return window.openai.callTool(name,args);
-      return request("tools/call",{name,arguments:args});
+      const result=typeof window.openai?.callTool==="function"
+        ?await nativeCall(()=>window.openai.callTool(name,args))
+        :await request("tools/call",{name,arguments:args});
+      if(!result||typeof result!=="object"||Array.isArray(result))throw failure("invalid");
+      if(result.isError)throw failure("tool");
+      return result;
     }
     async function recalculate() {
-      setBusy(true,"Calculating…"); try { const result=await callTool("show_control_center",{task:center?.task_summary||"Current task",selected_mode:selected,estimate_scope:$("scope").value}); render(result?.structuredContent); $("status").textContent="Estimates updated."; } catch(e) { $("status").textContent="Could not recalculate on this host."; } finally { setBusy(false); }
+      if(busy||closed)return;
+      const args={task:center?.task_summary||"Current task",selected_mode:selected,estimate_scope:$("scope").value};
+      setBusy(true,"Calculating…");
+      try { const result=await callTool("show_control_center",args); if(closed)throw failure("closed"); render(result.structuredContent); $("status").textContent="Estimates updated."; }
+      catch(error) { showFailure("Recalculation",error); } finally { setBusy(false); }
     }
     $("recalculate").onclick=recalculate;
-    $("save").onclick=async()=>{ setBusy(true,"Saving default…"); try { await callTool("update_settings",{default_mode:selected}); $("status").textContent=`${label()} is now the default.`; } catch(e) { $("status").textContent="Could not save the default on this host."; } finally { setBusy(false); } };
-    function label(){ return center?.descriptions?.find(x=>x.mode===selected)?.label||selected; }
-    $("use").onclick=async()=>{ const prompt=`Use Agent Efficiency ${label()} mode for this task.`; setBusy(true,"Applying mode…"); try { if(window.openai?.sendFollowUpMessage) await window.openai.sendFollowUpMessage({prompt}); else await request("ui/message",{role:"user",content:[{type:"text",text:prompt}]}); $("status").textContent=`${label()} selected for this task.`; } catch(e) { $("status").textContent=`Selected ${label()}. Tell Codex to use it if the task does not continue automatically.`; } finally { setBusy(false); } };
-    window.addEventListener("message",(event)=>{ if(event.source!==window.parent)return; const msg=event.data;if(!msg||msg.jsonrpc!=="2.0")return;if(msg.id!==undefined&&pending.has(msg.id)){const p=pending.get(msg.id);pending.delete(msg.id);msg.error?p.reject(msg.error):p.resolve(msg.result);return;}if(msg.method==="ui/notifications/tool-result")render(msg.params?.structuredContent); },{passive:true});
-    if(window.openai?.toolOutput) render(window.openai.toolOutput);
+    function label(mode){ return center?.descriptions?.find(x=>x.mode===mode)?.label||mode; }
+    $("save").onclick=async()=>{
+      if(busy||closed||!center)return;
+      const mode=selected; const modeLabel=label(mode); setBusy(true,"Saving default…");
+      try { const result=await callTool("update_settings",{default_mode:mode}); if(closed)throw failure("closed"); if(toolData(result)?.default_mode!==mode)throw failure("invalid"); $("status").textContent=`${modeLabel} is now the default.`; }
+      catch(error) { showFailure("Saving the default",error); } finally { setBusy(false); }
+    };
+    $("use").onclick=async()=>{
+      if(busy||closed||!center)return;
+      const mode=selected; const modeLabel=label(mode); setBusy(true,"Requesting mode…");
+      try {
+        const selection=toolData(await callTool("select_task_mode",{mode}));
+        if(closed)throw failure("closed");
+        if(selection?.mode!==mode||typeof selection.handoff_token!=="string"||!/^[0-9a-f]{32}$/.test(selection.handoff_token))throw failure("invalid");
+        const prompt=`Use Agent Efficiency ${modeLabel} mode for this task. [agent-efficiency-mode:${selection.handoff_token}]`;
+        const result=typeof window.openai?.sendFollowUpMessage==="function"
+          ?await nativeCall(()=>window.openai.sendFollowUpMessage({prompt}))
+          :await request("ui/message",{role:"user",content:[{type:"text",text:prompt}]});
+        if(closed)throw failure("closed");
+        if(result?.isError)throw failure("tool");
+        $("status").textContent=`${modeLabel} request sent. The next prompt hook must confirm the mode; the default is unchanged.`;
+      } catch(error) { showFailure("Applying the mode",error); } finally { setBusy(false); }
+    };
+    function onMessage(event) {
+      if(closed||event.source!==window.parent)return;
+      const msg=event.data; if(!msg||typeof msg!=="object"||Array.isArray(msg)||msg.jsonrpc!=="2.0")return;
+      if(msg.id!==undefined&&pending.has(msg.id)){
+        const request=pending.get(msg.id); const hasResult=Object.hasOwn(msg,"result"); const hasError=Object.hasOwn(msg,"error");
+        if(msg.method!==undefined||hasResult===hasError)request.reject(failure("invalid"));
+        else if(hasError)request.reject(failure("tool")); else request.resolve(msg.result);
+        return;
+      }
+      if(msg.method==="ui/notifications/tool-result"&&!busy){try{if(msg.params?.isError)throw failure("tool");render(msg.params?.structuredContent);}catch(error){showFailure("Loading the control center",error);}}
+    }
+    function close() { closed=true; window.removeEventListener("message",onMessage); for(const cancel of [...inFlight])cancel(); setBusy(false); }
+    window.addEventListener("message",onMessage,{passive:true});
+    window.addEventListener("pagehide",close,{once:true});
+    setBusy(false);
+    if(window.openai?.toolOutput){try{render(window.openai.toolOutput);}catch(error){showFailure("Loading the control center",error);}}
   </script>
 </body>
 </html>

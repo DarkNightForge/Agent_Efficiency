@@ -93,6 +93,8 @@ class V04ForecastAuditTests(unittest.TestCase):
         self.assertEqual(forecast["eta_minutes"], {"low": 1.0, "high": 3.0})
         self.assertEqual(forecast["capacity"]["windows"], [{
             "limit_id": "five-hour",
+            "identity_source": "explicit",
+            "identity_eligible": True,
             "window_instance": ae._window_instance({
                 "limit_id": "five-hour", "resets_at": 9999999999,
             }),
