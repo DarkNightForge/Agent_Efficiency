@@ -122,8 +122,10 @@ git apply --check --unidiff-zero codex/SHARED-SECURITY.patch
 ```
 
 Coordinate that limited scope with @DarkNightForge before applying the patch.
-Recheck it if shared docs change. No coordination message has been sent by this
-local preparation. The Codex-owned wording review is complete; applying the
+Recheck it if shared docs change. Coordination was subsequently requested in
+[public issue 6](https://github.com/DarkNightForge/Agent_Efficiency/issues/6)
+on October 28; see [PUBLIC-REVIEW.md](PUBLIC-REVIEW.md) for access and PR preparation.
+The Codex-owned wording review is complete; applying the
 shared security correction remains pending and must not be represented as done.
 
 ## Validation — October 26, 2026
@@ -155,10 +157,10 @@ Linux-specific cases and the configured Node 22 runtime remain to be observed.
 
 ## Remaining release gates
 
-The developer manifest version is preserved as `0.5.0+codex.20260929224250`.
-The wording/metadata changes here are not installed merely because that same
-version already exists in a cache. Establish a new installation identity and
-payload parity when the combined installed acceptance is authorized.
+The migration originally preserved `0.5.0+codex.20260929224250`; acceptance
+preparation on October 28 assigns `0.5.0+codex.20261028213407`. This fresh
+developer identity does not itself install the candidate or prove parity.
+Follow [INSTALLED-ACCEPTANCE.md](INSTALLED-ACCEPTANCE.md) and its payload inventory.
 
 Before v1: coordinate shared docs, obtain formal review, agree the Windows
 permission-prompt disposition, test the exact installed candidate (real MCP/UI
@@ -167,3 +169,8 @@ the commit proposed for merge. Then update release metadata, perform a clean
 installation check and publish only after release approval. Historical research
 records need an explicit disposition, not invented implementation or automatic
 closure. No release hold is cleared by these source tests.
+
+Current OpenAI guidance excludes lifecycle-hook plugins from the universal
+public directory while permitting manual desktop installation. This candidate
+continues along the local/repository distribution path; a directory-compatible
+design would require a separate scope decision.

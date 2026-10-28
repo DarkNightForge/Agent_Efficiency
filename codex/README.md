@@ -21,6 +21,12 @@ Current source validation and remaining host acceptance are tracked in
 You need Git, Python 3, and a Codex build with plugin support. The plugin has no
 third-party Python dependencies.
 
+For the current unreleased candidate, follow
+[the exact installed-candidate procedure](INSTALLED-ACCEPTANCE.md) instead of
+installing public main. This hook-containing build is manually installed in
+Desktop; current [OpenAI packaging guidance](https://developers.openai.com/plugins/build/plugins#bundled-mcp-servers-and-lifecycle-hooks)
+excludes lifecycle-hook plugins from the universal public directory.
+
 ```bash
 git clone git@github.com:DarkNightForge/Agent_Efficiency.git
 cd Agent_Efficiency

@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "version": "0.5.0+codex.20261028213407",
+  "runtime_baseline_commit": "a1807d38e37218994a1cad3670b6e4f95e14edf7",
+  "runtime_change": "Manifest installation identity only; runtime code unchanged",
+  "fingerprint_scope": "Exact bytes of the local Windows source payload; compare all files with the installed payload",
+  "files": [
+    {
+      "path": ".codex-plugin/plugin.json",
+      "sha256": "3483119b0153a2f076b21af9e644aec9d17b46fb0073d73b8134ddef03581103",
+      "bytes": 1476
+    },
+    {
+      "path": ".mcp.json",
+      "sha256": "7a5c36e8468706cd429a88867198e6e94daedb8898253a3a33628ef564b7eae0",
+      "bytes": 196
+    },
+    {
+      "path": "assets/control_center.html",
+      "sha256": "7e03e4fbac19290d8688604486356537ec05333b222f591709710a3b13a54e2f",
+      "bytes": 17322
+    },
+    {
+      "path": "hooks/agent_efficiency_hook.py",
+      "sha256": "4ba6f682c8675157a2305ae943f0c2d5bab86be00cf41692a483dd1cf12633dd",
+      "bytes": 921
+    },
+    {
+      "path": "hooks/hooks.json",
+      "sha256": "3ec921919981360780c070ce2272e4791fa5e4cba3ddafd8cd0d846d34dbe2b3",
+      "bytes": 4690
+    },
+    {
+      "path": "scripts/.gitattributes",
+      "sha256": "b94d398ee26be067e2b90f403b515ae0b204617be48bb2ebea08d40c65cf752a",
+      "bytes": 34
+    },
+    {
+      "path": "scripts/agent_efficiency.py",
+      "sha256": "773ab9a5a102839ff8c81e9d68ac9cb160febd35bf14005c9a178e32757095a5",
+      "bytes": 168789
+    },
+    {
+      "path": "scripts/app_server_client.py",
+      "sha256": "e0cca547f01777e9c3e3aa0da96a53ef855c83b9e2717e54fce46175aa7809d7",
+      "bytes": 5329
+    },
+    {
+      "path": "scripts/budget_policy.py",
+      "sha256": "28a7a143e114c911d00dc2d8420b7336180c7e9de406a5169f5f2490a2da202c",
+      "bytes": 6852
+    },
+    {
+      "path": "scripts/codex_telemetry.py",
+      "sha256": "4bfdf7fc257996b9963037a555bd421a8ea06bbbb009470ddbc2138b325236fd",
+      "bytes": 7731
+    },
+    {
+      "path": "scripts/git-agent-efficiency",
+      "sha256": "5a8f9371d92705a76b52a6a02b29f71b302d749a2a8284bb63797d84a6f705d1",
+      "bytes": 944
+    },
+    {
+      "path": "scripts/launch_python.ps1",
+      "sha256": "e296013c149fbb994fe6ce2d6036d4aca7e05bc2bfbf7869efb01bff942d5642",
+      "bytes": 3146
+    },
+    {
+      "path": "scripts/mcp_server.py",
+      "sha256": "f02effbe6efa6ea076d41294d2901b2bcbc0efb8988dca82572ac5118147c8d0",
+      "bytes": 27592
+    },
+    {
+      "path": "skills/manage-agent-efficiency/agents/openai.yaml",
+      "sha256": "9e500749eb58f1871cbec1686a5c5ffb35a3db09be7425f785489d439adf90a5",
+      "bytes": 246
+    },
+    {
+      "path": "skills/manage-agent-efficiency/references/modes.md",
+      "sha256": "af7529a4a20952fdf4d72e7dd37003f8aff361a96ab1f5079a67441901140866",
+      "bytes": 1909
+    },
+    {
+      "path": "skills/manage-agent-efficiency/references/telemetry.md",
+      "sha256": "f0c3dd350250af8381b5dcf069d9a4a508d3eb26a00f024cc508e78e08af8bc7",
+      "bytes": 7787
+    },
+    {
+      "path": "skills/manage-agent-efficiency/SKILL.md",
+      "sha256": "c9e9ec15dc6a18d89b4842e5d19fc4dc2e0d2bd27be2cd95aa2656ad927b4703",
+      "bytes": 7931
+    }
+  ]
+}
