@@ -1,10 +1,12 @@
 # Exact installed-candidate acceptance
 
-Owner: @Eclipse1231317. Prepared October 28, 2026. Results: **not run**.
+Owner: @Eclipse1231317. Updated October 30, 2026. Repair-candidate Desktop results: **pending**.
 
-Candidate: `0.5.0+codex.20261028213407`, on `robbie/public-v1-hardening`.
-The runtime baseline is migration commit `a1807d3`; the candidate changes only
-the manifest's build identity and adds review/test preparation documents.
+Candidate: `0.5.0+codex.20261030235900`, on `robbie/public-v1-hardening`.
+This repairs the installed findings from source baseline `874043d`: shared state
+resolution, child-context lifecycle, widget initialization/final-output handling
+and bounded runtime/caller diagnostics. The earlier installed test failed;
+neither its passes nor its failures count as a test of this new payload.
 [ACCEPTANCE-CANDIDATE.json](ACCEPTANCE-CANDIDATE.json) fingerprints all 17
 tracked plugin payload files, including configuration, launchers, UI and skill.
 A base `v0.5` label or matching directory name alone is insufficient.
@@ -26,12 +28,17 @@ hook event, fabricated usage reading or manually completed task record.
    codex plugin marketplace list
    ```
 
+   If `codex` is not on PowerShell's PATH, use the verified full path of the
+   desktop app's bundled executable with `& $codexExe ...`; do not install a
+   second CLI or change global PATH just for this test. If the marketplace
+   already points to this exact worktree, registration need not be repeated.
+
    Verify the `agent-efficiency` marketplace resolves to this checkout. If an
    existing source with that name resolves elsewhere, stop and report the
    conflict; do not remove unrelated marketplaces or hand-edit global config.
 3. Reopen the desktop app, choose that local source in the Plugins Directory,
    and install/update Agent Efficiency. Confirm full candidate version
-   `0.5.0+codex.20261028213407`. The full version may require installed metadata
+   `0.5.0+codex.20261030235900`. The full version may require installed metadata
    inspection rather than the display label. If unavailable or rejected, record
    a setup blocker; do not claim installation succeeded.
 4. Review and trust this plugin's actual hook commands in the supported hook
@@ -128,7 +135,7 @@ anything, publish, bypass permissions, inspect credentials/passkeys, or delete
 plugin state. Stop and report any unexpected sensitive permission prompt.
 
 1. Verify the clean checkout/HEAD and candidate
-0.5.0+codex.20261028213407 using codex/ACCEPTANCE-CANDIDATE.json. Locate the
+0.5.0+codex.20261030235900 using codex/ACCEPTANCE-CANDIDATE.json. Locate the
 loaded installed root from host metadata/skill location and compare all 17
 payload files, source and installed. Tie loaded skill, hooks and MCP server to
 that root. Do not substitute source CLI calls for installed MCP availability.
@@ -139,6 +146,13 @@ aggregate forecast diagnostics. Confirm 13 expected tools, current annotations
 (only security status and renderer read-only), delegated/automatic request
 disclosures, and no paths/identifiers in security/diagnostic outputs. Record
 original preferences without changing them. Do not dump unrelated history.
+The live security response now includes runtime build/core fingerprints,
+state-source classification, aggregate hook-event observations and the live
+MCP contract (server fingerprint, annotations, UI resource declaration). Compare
+these with the payload inventory. They establish plugin-reported runtime
+evidence, not independent attestation of host process configuration or trust.
+Confirm MCP sees this test's completed hook records in the same state after
+completion; do not merge either existing state directory to make it pass.
 
 3. Call the installed refresh_usage and show_control_center for a short
 non-sensitive arithmetic task with estimate_scope all, capacity_scope all and
@@ -166,7 +180,8 @@ Never manually call start_task/complete_task or inject hook events to replace
 automatic measurements. A Stop hook runs after the response ends, so leave
 completion/token reconciliation verification for Prompt B.
 
-6. Record an aggregate poll-health/capture baseline after the explicit/UI
+6. Record runtime.poll_callers.worker last-attempt/success timestamps from the
+read-only security response, plus an independent UTC baseline after explicit/UI
 refreshes. End the turn and tell me when to send Prompt B: at least five minutes
 later, keeping this chat and MCP connection open, without pressing Recalculate
 or calling explicit refresh again. Do not poll tools repeatedly or silently
@@ -184,8 +199,9 @@ saved default, save it, and recalculate. Then choose a different mode and use it
 for one task. The automatic follow-up should resume the test. A later ordinary
 prompt should return to the saved default rather than reuse that one-time token.
 
-After the test agent ends its work turn, leave that chat open for at least five
-minutes, then paste Prompt B. Hooks for Prompt B may themselves refresh usage:
+After the test agent ends its work turn, set a six-minute timer and leave that
+chat open until it rings, then paste Prompt B. The measured requirement remains
+at least 300 seconds, with the extra minute providing margin. Hooks for Prompt B may themselves refresh usage:
 poll timestamps alone cannot prove that the background worker ran. The agent
 must use worker-attributable evidence or mark cadence NOT OBSERVED.
 
@@ -210,6 +226,10 @@ Check whether the long-lived MCP worker refreshed automatically across the
 idle interval. Distinguish worker evidence from SessionStart/UserPromptSubmit,
 explicit refresh and UI refresh. Without attributable evidence mark cadence
 NOT OBSERVED, even if the snapshot is fresh. Keep stale/failed data honest.
+Compare runtime.poll_callers.worker timestamps with the baseline; newer prompt
+or completion caller timestamps must not replace that worker-specific evidence.
+Confirm the elapsed UTC interval was at least 300 seconds. Do not substitute
+time spent running Prompt B for the preceding idle interval.
 Confirm this ordinary prompt uses the saved default rather than the consumed
 one-time mode, and verify preferences stayed unchanged.
 

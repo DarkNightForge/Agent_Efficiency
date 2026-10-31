@@ -26,8 +26,11 @@ its one-task control sends a follow-up message with a one-time mode token.
 
 ## State writes and retention
 
-State defaults to `~/.agent-efficiency/`. `AGENT_EFFICIENCY_DATA` or host-provided
-`PLUGIN_DATA` may select a dedicated absolute directory. Before claiming a
+`AGENT_EFFICIENCY_DATA` and then host-provided `PLUGIN_DATA` select a dedicated
+absolute directory. For the verified legacy Codex cache layout, the fallback is
+the host's `plugins/data/<plugin>-<marketplace>` directory beside its cache;
+standalone/source use retains `~/.agent-efficiency/`. No old state is copied,
+merged or deleted when resolving a location. Before claiming a
 location, the plugin checks ownership and existing entries. It rejects broad
 locations, unrelated files, redirected links and special files. Writes use a
 fixed filename allowlist and bounded atomic replacement. POSIX permissions
@@ -63,6 +66,20 @@ Failed refreshes do not relabel old captures as fresh.
 With telemetry enabled, the worker also performs bounded incremental rollout
 reads. A new chat does not isolate that background scan. Measured percentages
 and reset times do not guarantee future task capacity.
+
+Subagent hooks read at most 256 KiB of the designated child's rollout header to
+verify its explicit parent relationship. A parent count is updated only for one
+unambiguous active parent; child tokens remain in a separate measurement. Child
+correlation references are hashed and bounded. No other transcripts are searched
+to guess a missing parent.
+
+Bounded diagnostics retain hook-event counts, timestamps, fixed refresh-caller
+labels and public module-code fingerprints. They contain no process IDs, local
+paths, prompt text or raw session identifiers. Caller-specific polling timestamps
+remain available after other callers refresh. These are plugin observations,
+not independent attestation of host configuration or trusted hook commands.
+The picker may retain only its selected mode in optional host widget state;
+that presentation state does not change the saved default or grant permission.
 
 ## User controls
 

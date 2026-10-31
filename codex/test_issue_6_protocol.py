@@ -40,8 +40,8 @@ NO_ARGUMENT_TOOLS = {
     "get_settings": ("get_settings", {}),
     "get_security_status": ("get_security_status", {}),
     "update_settings": ("update_settings", {}),
-    "refresh_usage": ("refresh_usage_snapshot", {"force": True, "raise_on_error": True}),
-    "refresh_rate_limits": ("refresh_usage_snapshot", {"force": True, "raise_on_error": True}),
+    "refresh_usage": ("refresh_usage_snapshot", {"force": True, "raise_on_error": True, "caller": "tool"}),
+    "refresh_rate_limits": ("refresh_usage_snapshot", {"force": True, "raise_on_error": True, "caller": "tool"}),
     "scan_rollouts": ("scan_rollouts", {}),
 }
 RUNNER = """
@@ -167,7 +167,12 @@ class ProtocolRecoveryTests(unittest.TestCase):
                     dispatch.assert_called_once_with(**expected_kwargs)
                     self.assertEqual(response["id"], "valid-args")
                     self.assertIs(response["result"]["isError"], False)
-                    self.assertEqual(response["result"]["structuredContent"], {"result": {"synthetic": True}})
+                    result = response["result"]["structuredContent"]["result"]
+                    self.assertTrue(result["synthetic"])
+                    if tool == "get_security_status":
+                        self.assertEqual(len(result["mcp_contract"]["tools"]), 13)
+                    else:
+                        self.assertEqual(result, {"synthetic": True})
 
     def test_valid_object_arguments_reach_mutation_unchanged(self):
         arguments = {"default_mode": "stretch"}

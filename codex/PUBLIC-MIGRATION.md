@@ -162,6 +162,10 @@ preparation on October 28 assigns `0.5.0+codex.20261028213407`. This fresh
 developer identity does not itself install the candidate or prove parity.
 Follow [INSTALLED-ACCEPTANCE.md](INSTALLED-ACCEPTANCE.md) and its payload inventory.
 
+October 30 installed findings are addressed in repair candidate
+`0.5.0+codex.20261030235900`; [INSTALLED-REPAIRS.md](INSTALLED-REPAIRS.md)
+supersedes the older candidate's current validation/acceptance status.
+
 Before v1: coordinate shared docs, obtain formal review, agree the Windows
 permission-prompt disposition, test the exact installed candidate (real MCP/UI
 handoff, applicable hooks, polling and scoped attribution), and inspect CI for

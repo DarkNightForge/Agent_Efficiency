@@ -6,7 +6,8 @@
         "--exec-path=./scripts",
         "agent-efficiency"
       ],
-      "cwd": "."
+      "cwd": ".",
+      "env_vars": ["AGENT_EFFICIENCY_DATA", "PLUGIN_DATA"]
     }
   }
 }

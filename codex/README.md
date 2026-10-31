@@ -158,8 +158,10 @@ exist.
 
 ## Telemetry and privacy
 
-Local state defaults to `~/.agent-efficiency/`; set `AGENT_EFFICIENCY_DATA` or
-`PLUGIN_DATA` to override it. An override must be an absolute, dedicated
+Local state honors `AGENT_EFFICIENCY_DATA`, then `PLUGIN_DATA`. A verified legacy
+Codex installation falls back to the matching host `plugins/data/` directory;
+standalone use defaults to `~/.agent-efficiency/`. Existing state locations are
+not automatically moved, merged or deleted. An override must be an absolute, dedicated
 directory. On first use, Agent Efficiency claims an empty directory—or a
 directory containing only recognized v0.4 state files—with an ownership marker.
 It refuses filesystem roots, the home directory itself, the current working

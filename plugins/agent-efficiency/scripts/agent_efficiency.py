@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import datetime as dt
+import hashlib
 import json
 import math
 import os
@@ -40,6 +41,9 @@ except ImportError:  # pragma: no cover - exercised on POSIX.
     msvcrt = None  # type: ignore[assignment]
 
 VERSION = "0.5.0"
+RUNTIME_CORE_SHA256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+POLL_CALLERS = frozenset({"unspecified", "worker", "tool", "cli", "control-center", "session-start", "prompt", "completion"})
+HOOK_EVENTS = frozenset({"SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "SubagentStart", "SubagentStop", "PreCompact", "PostCompact", "Stop", "SessionEnd"})
 MODES = ("throughput", "balanced", "stretch")
 MODE_ALIASES = {
     "big-baller": "throughput",
@@ -196,13 +200,40 @@ def _epoch(value: Any) -> float | None:
 
 
 def _data_dir() -> Path:
-    configured = os.environ.get("AGENT_EFFICIENCY_DATA") or os.environ.get("PLUGIN_DATA")
-    if configured:
-        candidate = Path(configured).expanduser()
-        if not candidate.is_absolute():
-            raise StateSecurityError("Agent Efficiency's data directory must be an absolute path")
-        return Path(os.path.abspath(candidate))
-    return Path(os.path.abspath(Path.home() / ".agent-efficiency"))
+    return _state_location()[0]
+
+
+def _state_location() -> tuple[Path, str]:
+    for key, label in (("AGENT_EFFICIENCY_DATA", "explicit"), ("PLUGIN_DATA", "host")):
+        if os.environ.get(key):
+            candidate = Path(os.environ[key]).expanduser()
+            if not candidate.is_absolute():
+                raise StateSecurityError("Agent Efficiency's data directory must be an absolute path")
+            return Path(os.path.abspath(candidate)), label
+    root = Path(__file__).resolve().parents[1]
+    # Legacy stdio servers may not receive hook-only PLUGIN_DATA. Recognize only
+    # the measured Codex legacy cache layout, never a similarly named workspace.
+    if (len(root.parents) > 3 and root.parent.name == "agent-efficiency" and root.parents[2].name == "cache"
+            and root.parents[3].name == "plugins"):
+        marketplace = root.parents[1].name
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}", marketplace):
+            raise StateSecurityError("Invalid installed marketplace identity")
+        manifest = _package_manifest(root)
+        if manifest.get("name") != "agent-efficiency" or manifest.get("version") != root.name:
+            raise StateSecurityError("Installed package identity could not be verified")
+        return root.parents[3] / "data" / f"agent-efficiency-{marketplace}", "installed-layout"
+    return Path(os.path.abspath(Path.home() / ".agent-efficiency")), "standalone"
+
+
+def _package_manifest(root: Path | None = None) -> dict[str, Any]:
+    path = (root or Path(__file__).resolve().parents[1]) / ".codex-plugin" / "plugin.json"
+    try:
+        with path.open("rb") as handle:
+            raw = handle.read(64 * 1024 + 1)
+        parsed = json.loads(raw) if len(raw) <= 64 * 1024 else None
+        return parsed if isinstance(parsed, dict) else {}
+    except (OSError, UnicodeError, ValueError):
+        return {}
 
 
 def _path_identity(path: Path) -> str:
@@ -740,6 +771,7 @@ def get_security_status() -> dict[str, Any]:
             "may_refresh_automatically": True,
             "local_process": "bounded Codex App Server client",
         },
+        "runtime": _runtime_status(root),
         "limits": {
             "external_json_bytes": MAX_EXTERNAL_JSON_BYTES,
             "rollout_line_bytes": MAX_ROLLOUT_LINE_BYTES,
@@ -747,6 +779,58 @@ def get_security_status() -> dict[str, Any]:
         },
         "issues": sorted(set(errors)),
     }
+
+
+def _runtime_status(root: Path) -> dict[str, Any]:
+    """Bounded, read-only provenance/health; never return paths or identifiers."""
+    def read(name: str) -> dict[str, Any]:
+        try:
+            parsed = json.loads(_read_text_unchecked(root / name))
+            return parsed if isinstance(parsed, dict) else {}
+        except (OSError, UnicodeError, ValueError):
+            return {}
+    events = read("events.json").get("hook_runtime", {})
+    events = events if isinstance(events, dict) else {}
+    observations = {}
+    for event in HOOK_EVENTS:
+        item = events.get(event)
+        if not isinstance(item, dict):
+            continue
+        observations[event] = {
+            key: min(2**63 - 1, value) if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else 0
+            for key in ("seen", "matched") for value in (item.get(key),)
+        }
+        observations[event]["last_seen_at"] = _epoch(item.get("last_seen_at"))
+    version = _package_manifest().get("version")
+    return {
+        "build_version": version if isinstance(version, str) and re.fullmatch(r"[0-9A-Za-z.+_-]{1,128}", version) else None,
+        "core_sha256": RUNTIME_CORE_SHA256,
+        "state_source": _state_location()[1],
+        "hook_events": observations,
+        "last_hook_core_sha256": events.get("core_sha256") if isinstance(events.get("core_sha256"), str) and re.fullmatch(r"[0-9a-f]{64}", events["core_sha256"]) else None,
+        "poll_callers": _poll_caller_status(read("usage.json").get("rate_limit_poll", {})),
+        "scope": "Plugin process/module observations; does not attest host hook trust or host process configuration.",
+    }
+
+
+def _observe_hook(event: str, matched: bool = False) -> None:
+    if event not in HOOK_EVENTS:
+        return
+    with _locked() as paths:
+        state = _event_state(paths)
+        health = state.get("hook_runtime", {})
+        health = health if isinstance(health, dict) else {}
+        old = health.get(event, {})
+        old = old if isinstance(old, dict) else {}
+        item = {}
+        for key, increment in (("seen", 1), ("matched", int(matched))):
+            value = old.get(key, 0)
+            item[key] = min(2**63 - 1, max(0, value) + increment) if isinstance(value, int) and not isinstance(value, bool) else increment
+        item["last_seen_at"] = _now()
+        health[event] = item
+        health["core_sha256"] = RUNTIME_CORE_SHA256
+        state["hook_runtime"] = health
+        _atomic_json(paths["events"], state)
 
 
 def _normalize_mode_value(mode: str) -> str:
@@ -968,7 +1052,27 @@ def _rate_limit_poll_status() -> dict[str, Any]:
         "last_attempt_at": stored.get("last_attempt_at"),
         "last_success_at": stored.get("last_success_at"),
         "last_error": stored.get("last_error"),
+        "callers": _poll_caller_status(stored),
     }
+
+
+def _poll_caller_status(stored: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(stored, dict):
+        return {}
+    callers = stored.get("callers", {})
+    if not isinstance(callers, dict):
+        return {}
+    result = {}
+    for caller in POLL_CALLERS:
+        item = callers.get(caller)
+        if not isinstance(item, dict):
+            continue
+        result[caller] = {
+            "status": item.get("status") if item.get("status") in {"ok", "polling", "degraded"} else "unknown",
+            "last_attempt_at": _epoch(item.get("last_attempt_at")),
+            "last_success_at": _epoch(item.get("last_success_at")),
+        }
+    return result
 
 
 def _task_key_from_refs(session_ref: str | None, turn_ref: str | None) -> str | None:
@@ -1025,7 +1129,7 @@ def _load_active(paths: dict[str, Path]) -> dict[str, Any]:
     return sanitized
 
 
-def _record_rate_limit_poll(**changes: Any) -> dict[str, Any]:
+def _record_rate_limit_poll(*, caller: str = "unspecified", **changes: Any) -> dict[str, Any]:
     with _locked() as paths:
         usage = _load_json(paths["usage"], {})
         if not isinstance(usage, dict):
@@ -1038,6 +1142,12 @@ def _record_rate_limit_poll(**changes: Any) -> dict[str, Any]:
             "last_error": stored.get("last_error") if isinstance(stored, dict) else None,
         }
         status.update(changes)
+        previous_callers = stored.get("callers", {}) if isinstance(stored, dict) else {}
+        callers = {key: value for key, value in previous_callers.items() if key in POLL_CALLERS and isinstance(value, dict)} if isinstance(previous_callers, dict) else {}
+        selected = caller if caller in POLL_CALLERS else "unspecified"
+        item = callers.get(selected, {})
+        callers[selected] = {key: changes.get(key, item.get(key)) for key in ("status", "last_attempt_at", "last_success_at")}
+        status["callers"] = callers
         usage["rate_limit_poll"] = status
         _atomic_json(paths["usage"], usage)
     return status
@@ -1066,6 +1176,7 @@ def refresh_usage_snapshot(
     force: bool = False,
     timeout: float = 5.0,
     raise_on_error: bool = False,
+    caller: str = "unspecified",
 ) -> dict[str, Any]:
     """Refresh Codex allowance state and persist sanitized polling health."""
     if os.environ.get("AGENT_EFFICIENCY_DISABLE_LIVE_REFRESH") == "1":
@@ -1076,7 +1187,7 @@ def refresh_usage_snapshot(
     if not force and age is not None and age <= USAGE_SNAPSHOT_MAX_AGE_SECONDS:
         return usage
 
-    _record_rate_limit_poll(status="polling", last_attempt_at=_now())
+    _record_rate_limit_poll(caller=caller, status="polling", last_attempt_at=_now())
     phase = "fetch"
     try:
         snapshot = fetch_rate_limits(timeout=timeout, version=VERSION)
@@ -1085,11 +1196,11 @@ def refresh_usage_snapshot(
         phase = "ingest"
         ingest_usage(rate_limits=snapshot)
     except Exception as error:
-        _record_rate_limit_poll(status="degraded", last_error=_sanitized_poll_error(error, phase=phase))
+        _record_rate_limit_poll(caller=caller, status="degraded", last_error=_sanitized_poll_error(error, phase=phase))
         if raise_on_error:
             raise
         return _load_json(_paths()["usage"], {})
-    _record_rate_limit_poll(status="ok", last_success_at=_now(), last_error=None)
+    _record_rate_limit_poll(caller=caller, status="ok", last_success_at=_now(), last_error=None)
     return _load_json(_paths()["usage"], {})
 
 
@@ -1573,7 +1684,7 @@ def show_control_center(
     picker_requested: bool = False,
     **inputs: Any,
 ) -> dict[str, Any]:
-    refresh_usage_snapshot()
+    refresh_usage_snapshot(caller="control-center")
     settings = get_settings()
     if not isinstance(picker_requested, bool):
         raise ValueError("picker_requested must be true or false")
@@ -2763,6 +2874,62 @@ def _gate_policy_signals(
     return emitted
 
 
+def _register_subagent(payload: dict[str, Any]) -> tuple[str | None, bool]:
+    """Match a child header's explicit parent to one unambiguous active turn."""
+    child_id = payload.get("session_id")
+    path = payload.get("transcript_path")
+    if not isinstance(child_id, str) or not child_id or not isinstance(path, str):
+        return None, False
+    parent_ids: set[str] = set()
+    try:
+        handle = _open_rollout_read(Path(path))
+        if handle is None:
+            return None, False
+        with handle:
+            for raw, _ in _bounded_complete_lines(handle, start_offset=0, byte_limit=256 * 1024):
+                if raw is None:
+                    continue
+                try:
+                    record = json.loads(raw)
+                except (UnicodeError, ValueError):
+                    continue
+                if not isinstance(record, dict) or record.get("type") != "session_meta":
+                    continue
+                meta = record.get("payload")
+                if not isinstance(meta, dict) or meta.get("id") != child_id:
+                    continue
+                source = meta.get("source")
+                subagent = source.get("subagent") if isinstance(source, dict) else None
+                spawned = subagent.get("thread_spawn") if isinstance(subagent, dict) else None
+                if not isinstance(spawned, dict):
+                    continue
+                for value in (spawned.get("parent_thread_id"), meta.get("parent_thread_id")):
+                    if isinstance(value, str) and value:
+                        parent_ids.add(value)
+                break
+    except OSError:
+        return None, False
+    if len(parent_ids) != 1 or child_id in parent_ids:
+        return None, False
+    parent_ref = opaque_ref(next(iter(parent_ids)), "session")
+    child_ref = opaque_ref(child_id, "session")
+    with _locked() as paths:
+        active = _load_active(paths)
+        candidates = [item for item in active.values() if _record_ref(item, "session") == parent_ref]
+        if len(candidates) != 1:
+            return None, False
+        parent = candidates[0]
+        seen = parent.get("subagent_session_refs", [])
+        seen = seen if isinstance(seen, list) else []
+        if child_ref not in seen:
+            if len(seen) >= 512:
+                return parent.get("mode"), False
+            parent["subagent_session_refs"] = [*seen, child_ref]
+            parent["subagents"] = int(parent.get("subagents", 0)) + 1
+            _atomic_json(paths["active"], active)
+        return parent.get("mode"), True
+
+
 def handle_hook(payload: dict[str, Any]) -> dict[str, Any] | None:
     event = payload.get("hook_event_name", "")
     session_id = payload.get("session_id")
@@ -2771,7 +2938,9 @@ def handle_hook(payload: dict[str, Any]) -> dict[str, Any] | None:
     telemetry_enabled = settings["telemetry_enabled"]
 
     if event == "SessionStart":
-        refresh_usage_snapshot()
+        if telemetry_enabled:
+            _observe_hook(event)
+        refresh_usage_snapshot(caller="session-start")
         info = MODE_INFO[settings["default_mode"]]
         context = (
             f"Agent Efficiency v{VERSION} is active. Default mode: {info['label']}. "
@@ -2781,7 +2950,7 @@ def handle_hook(payload: dict[str, Any]) -> dict[str, Any] | None:
         return {"hookSpecificOutput": {"hookEventName": event, "additionalContext": context}}
 
     if event == "UserPromptSubmit":
-        refresh_usage_snapshot()
+        refresh_usage_snapshot(caller="prompt")
         # A per-session mode override, consumed once. The handoff token lets the
         # control center hand a chosen mode to the next turn without the user
         # retyping it, and without one session's choice leaking into another's.
@@ -2809,6 +2978,8 @@ def handle_hook(payload: dict[str, Any]) -> dict[str, Any] | None:
                     _atomic_json(paths["active"], active)
         else:
             record = {"mode": selected_mode}
+        if telemetry_enabled:
+            _observe_hook(event, True)
         info = MODE_INFO[record["mode"]]
         capacity = estimate_capacity(record["mode"])
         context = render_usage_budget(
@@ -2827,6 +2998,25 @@ def handle_hook(payload: dict[str, Any]) -> dict[str, Any] | None:
     if not telemetry_enabled:
         return {} if event in {"Stop", "SubagentStop"} else None
 
+    if event == "SubagentStart":
+        parent_mode, matched = _register_subagent(payload)
+        # Only the confirmed child context may create/label a child record.
+        # A parent-context compatibility payload must never relabel its parent.
+        if session_id and turn_id and payload.get("agent_id") == session_id:
+            child = start_task(session_id=session_id, turn_id=turn_id,
+                       mode=parent_mode or settings["default_mode"],
+                       complexity=UNCLASSIFIED_COMPLEXITY, model=payload.get("model"),
+                       source="hook", rollout_offset=rollout_size(payload.get("transcript_path")))
+            with _locked() as paths:
+                active = _load_active(paths)
+                if child["task_id"] in active:
+                    active[child["task_id"]]["is_subagent"] = True
+                    _atomic_json(paths["active"], active)
+        _observe_hook(event, matched)
+        return None
+    if event == "SubagentStop":
+        _register_subagent(payload)
+
     with _locked() as paths:
         active = _load_active(paths)
         task_id = _find_task(active, session_id, turn_id)
@@ -2836,13 +3026,12 @@ def handle_hook(payload: dict[str, Any]) -> dict[str, Any] | None:
                 record["tool_calls"] = int(record.get("tool_calls", 0)) + 1
             elif event == "PostToolUse" and _tool_failed(payload.get("tool_response")):
                 record["tool_failures"] = int(record.get("tool_failures", 0)) + 1
-            elif event == "SubagentStart":
-                record["subagents"] = int(record.get("subagents", 0)) + 1
             elif event in {"PreCompact", "PostCompact"}:
                 record["compactions"] = int(record.get("compactions", 0)) + (1 if event == "PostCompact" else 0)
             _atomic_json(paths["active"], active)
+    _observe_hook(event, bool(task_id))
 
-    if event == "Stop":
+    if event in {"Stop", "SubagentStop"}:
         if not telemetry_enabled:
             return {}
         task_id = None
@@ -2858,8 +3047,8 @@ def handle_hook(payload: dict[str, Any]) -> dict[str, Any] | None:
                 turn_ref=task_record.get("turn_ref") if turn_id is None else None,
                 start_offset=int(task_record.get("rollout_offset", 0) or 0),
             )
-            refresh_usage_snapshot(force=True)
-            usage_after = _active_windows()
+            refresh_usage_snapshot(force=True, caller="completion")
+            usage_after = [] if task_record.get("is_subagent") else _active_windows()
             with contextlib.suppress(ValueError):
                 complete_task(
                     task_id,
@@ -3147,7 +3336,7 @@ def main(argv: list[str] | None = None) -> int:
                 }
             value = ingest_usage(rate_limits=source, plan_type=args.plan_type)
         elif args.command == "refresh-usage":
-            value = refresh_usage_snapshot(force=True, raise_on_error=True)
+            value = refresh_usage_snapshot(force=True, raise_on_error=True, caller="cli")
         elif args.command == "scan-rollouts":
             value = scan_rollouts(args.sessions_root)
         elif args.command == "verify":

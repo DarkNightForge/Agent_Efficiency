@@ -26,6 +26,24 @@ Set `AGENT_EFFICIENCY_DATA` to override the directory for development or testing
 Installed hooks use `PLUGIN_DATA` when Codex provides it. Overrides must be
 absolute paths to dedicated directories.
 
+The MCP config forwards only the named state overrides, not arbitrary environment
+variables. If no override is supplied, a package with a verified legacy Codex
+cache identity resolves the corresponding host `plugins/data/` directory.
+Standalone use keeps the home-directory fallback. Existing locations are never
+automatically copied, merged or removed to reconcile their contents.
+
+Subagent start/stop hooks use the child's own session/turn. A bounded read of its
+designated header verifies an explicit parent relationship; only one unambiguous
+active parent is counted, once per hashed child reference. Child token records
+remain separate. Missing/conflicting metadata is not replaced with a guess.
+
+Security status includes fixed refresh-caller timestamps, aggregate hook-event
+health, the package build version and public module fingerprints. Its MCP form
+also reports the live server's tool annotations and UI-resource declaration.
+These help inspect the plugin's own runtime; they do not attest the host's trust
+policy or process configuration. No local paths or raw session identifiers are
+added. Optional host widget state stores only the selected mode.
+
 The state directory is claimed with `.agent-efficiency-state.json`. Empty
 directories and directories containing only recognized state from v0.4 are
 adopted without rewriting existing records. Agent Efficiency refuses broad or

@@ -58,7 +58,7 @@ function harness(bridge, options = {}) {
     }
     clock = target;
   };
-  const calls = []; const posts = []; const followups = [];
+  const calls = []; const posts = []; const followups = []; const wireMessages = []; const widgetStates = [];
   const controls = () => [elements.get("recalculate"), elements.get("save"), elements.get("use"), elements.get("scope"), ...elements.get("cards").children];
   const defaultTool = (name, args) => {
     if (name === "show_control_center") return toolResult(center(args.selected_mode));
@@ -71,7 +71,17 @@ function harness(bridge, options = {}) {
   const emit = (type, event = {}) => { for (const listener of [...(listeners.get(type) || [])]) listener(event); };
   const respond = (id, result, extra = {}) => emit("message", { source: window.parent, data: { jsonrpc: "2.0", id, result, ...extra } });
   const parent = { postMessage(message, origin) {
-    assert.equal(origin, "*"); posts.push(message);
+    assert.equal(origin, "*"); wireMessages.push(message);
+    if(message.method === "ui/initialize") {
+      if(!options.holdInitialize)respond(message.id, {protocolVersion:options.protocolVersion || "2026-01-26",hostCapabilities:{},hostInfo:{name:"synthetic",version:"1"}});
+      return;
+    }
+    if(message.method === "ui/notifications/initialized") {
+      if(initial)emit("message", {source:parent,data:{jsonrpc:"2.0",method:"ui/notifications/tool-result",params:{structuredContent:initial}}});
+      return;
+    }
+    if(message.id === undefined)return;
+    posts.push(message);
     if (options.postThrows) throw Error("Synthetic post failure");
     let result;
     try { result = message.method === "tools/call" ? invokeTool(message.params.name, message.params.arguments) : invokeFollowup(message.params); }
@@ -88,12 +98,15 @@ function harness(bridge, options = {}) {
   };
   if (bridge === "native") window.openai = {
     toolOutput: initial,
+    widgetState: options.widgetState,
     callTool(name, args) { const value = invokeTool(name, args); return value === HANG ? new Promise(() => {}) : value; },
     sendFollowUpMessage(value) { const result = invokeFollowup(value); return result === HANG ? new Promise(() => {}) : result; },
+    setWidgetState(value) { widgetStates.push(value); },
   };
   const context = vm.createContext({
     window,
     document: {
+      body: {scrollHeight:480,scrollWidth:800},
       getElementById: id => elements.get(id), createElement: tag => new Element(tag),
       querySelectorAll: selector => selector === ".card" ? elements.get("cards").children : controls(),
     },
@@ -101,12 +114,11 @@ function harness(bridge, options = {}) {
     clearTimeout(id) { timers.delete(id); },
   });
   vm.runInContext(source, context, { filename: "control_center.html" });
-  if (bridge === "postMessage" && initial) emit("message", { source: parent, data: { jsonrpc: "2.0", method: "ui/notifications/tool-result", params: { structuredContent: initial } } });
   return {
-    elements, controls, calls, posts, followups, timers, window, emit, respond, advance,
+    elements, controls, calls, posts, followups, timers, window, emit, respond, advance, wireMessages, widgetStates,
     click: id => elements.get(id).onclick(),
     status: () => elements.get("status").textContent,
-    state: () => JSON.parse(vm.runInContext("JSON.stringify({pending:pending.size,inFlight:inFlight.size,busy,closed,selected})", context)),
+    state: () => JSON.parse(vm.runInContext("JSON.stringify({pending:pending.size,inFlight:inFlight.size,busy,closed,selected,bridgeReady})", context)),
     expire() { if (timers.size) advance(Math.max(...[...timers.values()].map(timer => timer.at)) - clock); },
   };
 }
@@ -280,4 +292,47 @@ test("postMessage: error tool-result notification cannot load or change a select
 test("native: closing before callback dispatch prevents a new host mutation", async () => {
   const h = harness("native"); const action = h.click("save"); h.emit("pagehide"); await action;
   assert.equal(h.calls.length, 0); clean(h);
+});
+
+test("postMessage: initialization precedes host result delivery and size notification", () => {
+  const h = harness("postMessage");
+  assert.equal(h.wireMessages[0].method, "ui/initialize");
+  assert.equal(h.wireMessages[1].method, "ui/notifications/initialized");
+  assert(h.wireMessages.some(message => message.method === "ui/notifications/size-changed" && message.params.height === 480));
+  assert.equal(h.state().bridgeReady, true);
+  assert.equal(h.elements.get("cards").children.length, 3);
+  clean(h);
+});
+
+test("postMessage: initialization timeout is bounded and cannot authorize a mutation", async () => {
+  const h = harness("postMessage", {holdInitialize:true,initial:null});
+  h.expire(); await flush();
+  assert.equal(h.state().bridgeReady, false);
+  assert.match(h.status(), /Connecting.*not confirmed/);
+  await h.click("save");
+  assert.equal(h.calls.length, 0);
+  clean(h);
+});
+
+test("postMessage: unsupported UI protocol does not claim readiness", async () => {
+  const h = harness("postMessage", {protocolVersion:"unsupported",initial:null});
+  await flush(); assert.equal(h.state().bridgeReady, false);
+  assert.match(h.status(), /invalid response/); clean(h);
+});
+
+test("native: finalized host output can hydrate the widget without another tool call", () => {
+  const h = harness("native", {initial:null});
+  h.emit("openai:set_globals", {detail:{globals:{toolOutput:populatedCenter("stretch")}}});
+  assert.equal(h.elements.get("cards").children.length, 3);
+  assert.equal(h.state().selected, "stretch");
+  assert.equal(h.calls.length, 0);
+  h.elements.get("cards").children[1].onclick();
+  assert.equal(h.widgetStates[0].selectedMode, "balanced"); clean(h);
+});
+
+test("native: remounted widget restores only its ephemeral mode selection", () => {
+  const h = harness("native", {widgetState:{selectedMode:"stretch"}});
+  assert.equal(h.state().selected, "stretch");
+  assert.equal(h.calls.length, 0);
+  assert.equal(h.followups.length, 0); clean(h);
 });

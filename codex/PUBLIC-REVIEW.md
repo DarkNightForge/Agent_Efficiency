@@ -2,6 +2,14 @@
 
 Owner: @Eclipse1231317. Updated October 28, 2026.
 
+October 30 follow-up: the first installed acceptance did not pass. The repair
+candidate is now `0.5.0+codex.20261030235900`; see
+[INSTALLED-REPAIRS.md](INSTALLED-REPAIRS.md) for the actual changes, validation
+and remaining Desktop checks. This supersedes the earlier build identity below.
+Current Codex validation passes; the unchanged Claude suite has a reproducible
+local performance-threshold failure. Do not use the earlier all-green paragraph
+as evidence that all current suites pass, or submit/merge with that blocker hidden.
+
 Public main remains `4e7651538bcd3bd4e9ab8c9876c2bd9ba3473c5f` after a fresh
 fetch. `robbie/public-v1-hardening` rebased cleanly; it was already current.
 The migration commit is `a1807d38e37218994a1cad3670b6e4f95e14edf7`.

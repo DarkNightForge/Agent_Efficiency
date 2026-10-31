@@ -75,6 +75,8 @@
     const REQUEST_TIMEOUT_MS = 15000;
     const MODES = new Set(["throughput", "balanced", "stretch"]);
     let nextId = 1; let center = null; let selected = "balanced"; let busy = false; let closed = false;
+    const nativeBridge = typeof window.openai?.callTool === "function";
+    let bridgeReady = nativeBridge; let initializeId = null; let sizeObserver = null;
     const $ = (id) => document.getElementById(id);
     function failure(code) { const error=new Error(code); error.code=code; return error; }
     // A timeout restores this UI; it cannot cancel work already accepted by the host.
@@ -97,6 +99,13 @@
       },()=>pending.delete(id));
     }
     function nativeCall(callback) { return bounded((resolve,reject)=>Promise.resolve().then(()=>{if(closed)throw failure("closed");return callback();}).then(resolve,reject)); }
+    function notify(method,params={}) { window.parent.postMessage({jsonrpc:"2.0",method,params},"*"); }
+    function notifySize() {
+      if(!bridgeReady||nativeBridge||closed)return;
+      const height=document.body?.scrollHeight;
+      const width=document.body?.scrollWidth;
+      if(Number.isFinite(height)&&height>0&&Number.isFinite(width)&&width>0){try{notify("ui/notifications/size-changed",{height,width});}catch(_){}}
+    }
     function extract(value) { return value?.result ?? value?.control_center ?? value; }
     function toolData(value) { return extract(value?.structuredContent); }
     function setBusy(value,message) {
@@ -126,7 +135,8 @@
           window&&Number.isFinite(window.used_percent)&&(window.forecast_verdict==null||typeof window.forecast_verdict==="string"))
         ))
       ))throw failure("invalid");
-      const renderMode=next.selected_mode;
+      const savedSelection=window.openai?.widgetState?.selectedMode;
+      const renderMode=!center&&MODES.has(savedSelection)?savedSelection:next.selected_mode;
       // Build the complete replacement before touching the visible selection.
       // A malformed later card must not mix a partial new view with old actions.
       const estimates=new Map(next.modes.map(x=>[x.mode,x])); const replacement=[];
@@ -143,7 +153,7 @@
             metrics.append(metric("Tasks left (est.)",`${cap.estimated_remaining.low}–${cap.estimated_remaining.high}`),metric("Capacity confidence",cap.confidence),metric("Usage (measured)",window?`${window.used_percent}% used`:"Unavailable"),metric("Forecast",verdict));
           } else metrics.append(metric("Tasks left","UNCALIBRATED"),metric("Capacity confidence","low")); card.append(metrics);
         } else { const note=document.createElement("div"); note.className="uncalculated"; note.textContent="Not calculated — select and recalculate."; card.append(note); }
-        card.onclick=()=>{ if(busy||closed)return; selected=info.mode; document.querySelectorAll(".card").forEach(el=>{const active=el.dataset.mode===selected;el.classList.toggle("selected",active);el.setAttribute("aria-pressed",String(active));}); };
+        card.onclick=()=>{ if(busy||closed)return; selected=info.mode; document.querySelectorAll(".card").forEach(el=>{const active=el.dataset.mode===selected;el.classList.toggle("selected",active);el.setAttribute("aria-pressed",String(active));}); if(typeof window.openai?.setWidgetState==="function"){try{window.openai.setWidgetState({selectedMode:selected});}catch(_){}} };
         replacement.push(card);
       }
       $("cards").replaceChildren(...replacement);
@@ -151,8 +161,10 @@
       const poll=next.telemetry_status?.rate_limit_poll||{}; const pollError=poll.last_error?.message; $("telemetry-status").textContent=`Rate-limit telemetry: ${poll.status||"not-started"}${pollError?` — ${pollError}`:""}`;
       const security=next.security||{}; const storage=security.storage||{}; const retention=security.retention||{}; $("security-status").textContent=security.safety_checks_passed?"Local state checks passed":`Attention: ${(security.issues||[]).length} check(s)`; $("storage-status").textContent=`${formatNumber(storage.used_bytes||0)} of ${formatNumber(storage.limit_bytes||0)} bytes`; $("retention-status").textContent=`${formatNumber(retention.history_records||0)} of ${formatNumber(retention.history_record_limit||0)} records`;
       center=next; selected=renderMode; setBusy(busy);
+      notifySize();
     }
     async function callTool(name,args) {
+      if(!bridgeReady)throw failure("unavailable");
       const result=typeof window.openai?.callTool==="function"
         ?await nativeCall(()=>window.openai.callTool(name,args))
         :await request("tools/call",{name,arguments:args});
@@ -197,16 +209,32 @@
       if(msg.id!==undefined&&pending.has(msg.id)){
         const request=pending.get(msg.id); const hasResult=Object.hasOwn(msg,"result"); const hasError=Object.hasOwn(msg,"error");
         if(msg.method!==undefined||hasResult===hasError)request.reject(failure("invalid"));
-        else if(hasError)request.reject(failure("tool")); else request.resolve(msg.result);
+        else if(hasError)request.reject(failure("tool")); else {
+          if(msg.id===initializeId){
+            if(msg.result?.protocolVersion!=="2026-01-26"){request.reject(failure("invalid"));return;}
+            bridgeReady=true;
+            try{notify("ui/notifications/initialized");notifySize();}catch(error){bridgeReady=false;request.reject(error);return;}
+          }
+          request.resolve(msg.result);
+        }
         return;
       }
+      if(msg.method==="ui/notifications/tool-input"&&!busy){const args=msg.params?.arguments??msg.params;if(args?.control_center){try{render(args.control_center);}catch(error){showFailure("Loading the control center",error);}}}
       if(msg.method==="ui/notifications/tool-result"&&!busy){try{if(msg.params?.isError)throw failure("tool");render(msg.params?.structuredContent);}catch(error){showFailure("Loading the control center",error);}}
     }
-    function close() { closed=true; window.removeEventListener("message",onMessage); for(const cancel of [...inFlight])cancel(); setBusy(false); }
+    function onGlobals(event) { const globals=event.detail?.globals;if(!closed&&!busy&&globals&&Object.hasOwn(globals,"toolOutput")&&globals.toolOutput){try{render(globals.toolOutput);}catch(error){showFailure("Loading the control center",error);}} }
+    function close() { closed=true; window.removeEventListener("message",onMessage);window.removeEventListener("openai:set_globals",onGlobals);sizeObserver?.disconnect(); for(const cancel of [...inFlight])cancel(); setBusy(false); }
     window.addEventListener("message",onMessage,{passive:true});
+    window.addEventListener("openai:set_globals",onGlobals,{passive:true});
     window.addEventListener("pagehide",close,{once:true});
     setBusy(false);
     if(window.openai?.toolOutput){try{render(window.openai.toolOutput);}catch(error){showFailure("Loading the control center",error);}}
+    if(!nativeBridge){
+      initializeId=nextId;
+      request("ui/initialize",{protocolVersion:"2026-01-26",clientInfo:{name:"agent-efficiency-control-center",version:"0.5.0"},appCapabilities:{availableDisplayModes:["inline"]}})
+        .catch(error=>{if(!closed)showFailure("Connecting the control center",error);});
+      if(typeof ResizeObserver==="function"&&document.body){sizeObserver=new ResizeObserver(notifySize);sizeObserver.observe(document.body);}
+    }
   </script>
 </body>
 </html>

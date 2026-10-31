@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import math
 import sys
 import threading
@@ -34,6 +35,7 @@ from agent_efficiency import (
 UI_VERSION = ".".join(VERSION.split(".")[:2])
 UI_URI = f"ui://widget/agent-efficiency-control-center-v{UI_VERSION}.html"
 UI_PATH = Path(__file__).resolve().parents[1] / "assets" / "control_center.html"
+RUNTIME_SERVER_SHA256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
 MAX_MCP_MESSAGE_BYTES = 1 * 1024 * 1024
 MAX_MCP_HEADER_BYTES = 8 * 1024
 MAX_MCP_HEADERS = 32
@@ -359,9 +361,16 @@ def call_tool(name: str, args: dict[str, Any]) -> Any:
     if name == "get_settings":
         return get_settings()
     if name == "get_security_status":
-        return get_security_status()
+        result = get_security_status()
+        result["mcp_contract"] = {
+            "server_sha256": RUNTIME_SERVER_SHA256,
+            "ui_resource": UI_URI,
+            "tools": {tool["name"]: dict(tool["annotations"]) for tool in TOOLS},
+            "scope": "Live server declarations; not independent host configuration or hook trust evidence.",
+        }
+        return result
     if name == "refresh_usage":
-        return refresh_usage_snapshot(force=True, raise_on_error=True)
+        return refresh_usage_snapshot(force=True, raise_on_error=True, caller="tool")
     if name == "update_settings":
         return update_settings(**args)
     if name == "start_task":
@@ -380,7 +389,7 @@ def call_tool(name: str, args: dict[str, Any]) -> Any:
     if name == "scan_rollouts":
         return scan_rollouts()
     if name == "refresh_rate_limits":
-        return refresh_usage_snapshot(force=True, raise_on_error=True)
+        return refresh_usage_snapshot(force=True, raise_on_error=True, caller="tool")
     if name == "render_control_center":
         center = args.get("control_center")
         if not isinstance(center, dict) or "modes" not in center or "descriptions" not in center:
@@ -425,7 +434,8 @@ def handle(message: Any) -> Any:
             "id": request_id,
             "result": {
                 "protocolVersion": requested if requested in SUPPORTED_PROTOCOL_VERSIONS else SUPPORTED_PROTOCOL_VERSIONS[0],
-                "capabilities": {"tools": {"listChanged": False}, "resources": {"listChanged": False}},
+                "capabilities": {"tools": {"listChanged": False}, "resources": {"listChanged": False},
+                                 "extensions": {"io.modelcontextprotocol/ui": {"mimeTypes": ["text/html;profile=mcp-app"]}}},
                 "serverInfo": {"name": "agent-efficiency", "version": VERSION},
             },
         }
@@ -552,7 +562,7 @@ def _telemetry_loop(stop: threading.Event, interval: int = 240) -> None:
     failures = 0
     while not stop.is_set():
         try:
-            refresh_usage_snapshot(force=True, raise_on_error=True)
+            refresh_usage_snapshot(force=True, raise_on_error=True, caller="worker")
             failures = 0
         except Exception:
             failures += 1
