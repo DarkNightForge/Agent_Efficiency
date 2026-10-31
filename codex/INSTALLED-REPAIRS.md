@@ -59,6 +59,7 @@ and 1.021s against its 1.0s threshold across two isolated full-suite runs. No
 Claude source/test, threshold or CI workflow was edited. This remains an owner
 validation issue; the required three-suite gate is **not green**. Do not keep
 retrying the benchmark until it passes or silently convert it into a skip.
+Owner follow-up is [issue 7](https://github.com/DarkNightForge/Agent_Efficiency/issues/7).
 The Codex skips remain POSIX FIFO/permission and Windows symlink-privilege cases.
 
 The permitted small AGENTS.md edit updates only test/fixture counts and must be
@@ -77,6 +78,23 @@ annotations/resources and five-minute worker activity. Such a process is not
 the Desktop's own loaded connection, and cannot establish that Desktop's picker
 persists, trusted hooks use the new package, or the actual UI handoff works.
 Those results must be recorded separately rather than substituted for Prompt A/B.
+
+The repair package was installed with the supported CLI; all 17 installed
+payload hashes match the inventory, and the prior candidate remains present.
+A real process launched by its installed Git/Python MCP entrypoint passed:
+13-tool discovery, core/server fingerprint checks, live annotation comparison,
+actual UI-resource content, host-directory history/audit visibility and genuine
+delegated worker refreshes. The observation lasted 305.062 seconds and the fixed
+worker success timestamp advanced. No explicit refresh tool was used during
+that interval. The process was then closed normally. Detailed results remain
+in a private artifact outside the repository; account working-volume figures
+are intentionally omitted here.
+
+The Desktop connection in the active development chat still returned the prior
+response format after installation (no new runtime/contract fields). That is
+not acceptance of the new connection. A restart/fresh session and ordinary hook
+review remain necessary before Desktop UI and automatic child lifecycle tests
+can be completed. No trust bypass or desktop permission automation was used.
 
 The Desktop phase requires a fresh loaded candidate after ordinary hook review,
 real UI interactions, parent/child hook evidence and at least 300 seconds of

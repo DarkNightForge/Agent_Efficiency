@@ -9,6 +9,11 @@ and remaining Desktop checks. This supersedes the earlier build identity below.
 Current Codex validation passes; the unchanged Claude suite has a reproducible
 local performance-threshold failure. Do not use the earlier all-green paragraph
 as evidence that all current suites pass, or submit/merge with that blocker hidden.
+The provider-owned timing failure is tracked in
+[issue 7](https://github.com/DarkNightForge/Agent_Efficiency/issues/7). The repair
+candidate is installed with matching payload; its separate live MCP process
+passed a 305-second worker/state/contract check. Desktop acceptance remains
+pending a fresh loaded connection and real UI/hook checks.
 
 Public main remains `4e7651538bcd3bd4e9ab8c9876c2bd9ba3473c5f` after a fresh
 fetch. `robbie/public-v1-hardening` rebased cleanly; it was already current.
