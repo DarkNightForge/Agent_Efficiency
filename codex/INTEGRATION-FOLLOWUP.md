@@ -71,6 +71,14 @@ subsequent full Codex suite passed. Final whitespace/local-link checks and all
 ## Installed verification and retest
 
 The [current inventory](ACCEPTANCE-CANDIDATE.json) identifies all 17 payload files.
+The package was installed through the supported local marketplace CLI and all
+17 installed hashes match. Its actual installed launcher also passed an isolated
+MCP check for core/server fingerprints, 13-tool contract, content-qualified URI
+and returned HTML, using disposable preferences with telemetry/live refresh
+disabled. Real preferences and histories were not changed by that isolated
+check. The development chat still exposed the prior UI declaration afterward;
+installation is not proof of a fresh loaded Desktop connection.
+
 Follow [INSTALLED-ACCEPTANCE.md](INSTALLED-ACCEPTANCE.md) in a fresh, normally
 trusted Desktop session after the package update. Verify the live build and
 core/server digests, and the content-qualified resource URI. Use the actual
