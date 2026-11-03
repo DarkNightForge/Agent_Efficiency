@@ -156,9 +156,17 @@ class InstalledRepairTests(unittest.TestCase):
         self.assertEqual(active[child_key]["tokens"]["total"], 5)
         self.assertEqual(active[parent_key]["subagents"], 1)
         self.assertNotIn("tokens", active[parent_key])
-        ae.handle_hook({**event, "hook_event_name": "SubagentStop"})
+        stop = {**event, "hook_event_name": "SubagentStop", "session_id": "parent-session",
+                "turn_id": "parent-turn", "transcript_path": str(parent_path),
+                "agent_transcript_path": event["transcript_path"]}
+        ae.handle_hook({**stop, "session_id": "unrelated"})
+        ae.handle_hook({**stop, "agent_id": "unrelated"})
+        ae.handle_hook({**stop, "turn_id": "stale-turn"})
+        self.assertEqual(ae.list_history(), [])
+        ae.handle_hook(stop)
         history = ae.list_history()
         self.assertEqual(len(history), 1)
+        self.assertEqual(history[0]["tokens"]["total"], 5)
         self.assertEqual(history[0]["session_ref"], ae.opaque_ref("child-session", "session"))
         self.assertEqual(history[0]["thread_ref"], ae.opaque_ref("child-thread", "session"))
         self.assertEqual(history[0]["parent_thread_ref"], ae.opaque_ref("parent-thread", "session"))

@@ -32,14 +32,17 @@ cache identity resolves the corresponding host `plugins/data/` directory.
 Standalone use keeps the home-directory fallback. Existing locations are never
 automatically copied, merged or removed to reconcile their contents.
 
-Subagent start/stop hooks use the child's own session/turn. A bounded read of its
-designated header verifies an explicit parent relationship; only one unambiguous
+Subagent registration uses the child's designated rollout header. A bounded read
+verifies an explicit parent relationship. Only one unambiguous
 active parent is counted, once per hashed child reference. Child token records
 remain separate. Missing/conflicting metadata is not replaced with a guess.
 Hook session IDs may differ from thread IDs. Only the designated header can bind
 their hashed aliases; reconciliation uses the verified thread reference without
-rewriting the original session reference. Linkage health adds only fixed reason
-labels and bounded counts, never raw identifiers or paths.
+rewriting the original session reference. A parent-scoped `SubagentStop` names
+the child separately through `agent_id` and `agent_transcript_path`. Completion
+validates both headers and the recorded turn relationship, then reads tokens
+from the child's own turn. Linkage health adds only fixed reason labels and
+bounded counts.
 
 Security status includes fixed refresh-caller timestamps, aggregate hook-event
 health, the package build version and public module fingerprints. Its MCP form
@@ -47,6 +50,12 @@ also reports the live server's tool annotations and UI-resource declaration.
 These help inspect the plugin's own runtime; they do not attest the host's trust
 policy or process configuration. No local paths or raw session identifiers are
 added. Optional host widget state stores only the selected mode.
+
+If the host gives the prompt hook only an app-message placeholder, the hook
+offers a short-lived receipt for that turn. The follow-up can confirm the mode
+by presenting the receipt and the picker's one-time token to `select_task_mode`.
+Confirmation consumes both values and applies to that follow-up. The plugin
+does not search rollout messages for the picker token.
 
 The state directory is claimed with `.agent-efficiency-state.json`. Empty
 directories and directories containing only recognized state from v0.4 are

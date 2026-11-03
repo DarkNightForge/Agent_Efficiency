@@ -1,13 +1,12 @@
 # Exact installed-candidate acceptance
 
-Owner: @Eclipse1231317. Updated November 2, 2026. Current-candidate Desktop results: **pending**.
+Owner: @Eclipse1231317. Updated November 3, 2026. Current-candidate Desktop results: **pending**.
 
-Candidate: `0.5.0+codex.20261103023954`, on `robbie/public-v1-hardening`.
-This follows source baseline `88c2627`: the Desktop test verified shared state and
-worker refresh but still failed picker and child linkage. The current changes
-correct the UI handshake and explicit session/thread binding; see
-[INTEGRATION-FOLLOWUP.md](INTEGRATION-FOLLOWUP.md). The earlier installed test failed;
-neither its passes nor its failures count as a test of this new payload.
+Candidate: `0.5.0+codex.20261103233201`, on `robbie/public-v1-hardening`.
+The previous candidate passed picker visibility and child registration in
+Desktop. Applying the selected mode and completing the child failed. This build
+adds a turn-specific picker confirmation and handles the parent-scoped child
+Stop event. See [INTEGRATION-FOLLOWUP.md](INTEGRATION-FOLLOWUP.md).
 [ACCEPTANCE-CANDIDATE.json](ACCEPTANCE-CANDIDATE.json) fingerprints all 17
 tracked plugin payload files, including configuration, launchers, UI and skill.
 A base `v0.5` label or matching directory name alone is insufficient.
@@ -39,7 +38,7 @@ hook event, fabricated usage reading or manually completed task record.
    conflict; do not remove unrelated marketplaces or hand-edit global config.
 3. Reopen the desktop app, choose that local source in the Plugins Directory,
    and install/update Agent Efficiency. Confirm full candidate version
-   `0.5.0+codex.20261103023954`. The full version may require installed metadata
+   `0.5.0+codex.20261103233201`. The full version may require installed metadata
    inspection rather than the display label. If unavailable or rejected, record
    a setup blocker; do not claim installation succeeded.
 4. Review and trust this plugin's actual hook commands in the supported hook
@@ -138,7 +137,7 @@ anything, publish, bypass permissions, inspect credentials/passkeys, or delete
 plugin state. Stop and report any unexpected sensitive permission prompt.
 
 1. Verify the clean checkout/HEAD and candidate
-0.5.0+codex.20261103023954 using codex/ACCEPTANCE-CANDIDATE.json. Locate the
+0.5.0+codex.20261103233201 using codex/ACCEPTANCE-CANDIDATE.json. Locate the
 loaded installed root from host metadata/skill location and compare all 17
 payload files, source and installed. Tie loaded skill, hooks and MCP server to
 that root. Do not substitute source CLI calls for installed MCP availability.
@@ -169,9 +168,12 @@ Do not claim the UI worked from HTML inspection alone.
 4. Tell me to select my current saved default and click Set as default, then
 Recalculate, then select a DIFFERENT mode and click Use selected mode. Wait for
 these user actions. On the widget follow-up, continue this same acceptance:
-confirm the one-time token was consumed by the real prompt hook, the selected
-mode applies to that follow-up, and the saved default stayed unchanged. Inspect
-settings after the save; do not simulate widget clicks with direct MCP calls.
+use the actual app message token and the current prompt hook's receipt to call
+select_task_mode once as directed by the hook. If the host includes the marker
+in the real prompt, the hook can consume it directly. Verify the selected mode
+on the exact follow-up record, one-time consumption, and the unchanged saved
+default. Inspect settings after the save. Do not simulate the widget action by
+creating a token, selecting a task directly, or replaying a previous receipt.
 If the UI or follow-up fails, preserve that failure rather than repairing it.
 
 5. Do bounded read-only work to generate genuine hook evidence: evaluate

@@ -221,12 +221,14 @@ TOOLS = [
     ),
     _tool(
         "select_task_mode",
-        "Store or replace a one-time mode handoff, or update a specified active task's mode. Does not change the persistent default; the next prompt hook must consume an unscoped handoff.",
+        "Select a mode for one task without changing the default. To confirm an Agent Efficiency picker follow-up, supply the token from the current app input and the prompt receipt from the current hook context. Omit both to create a handoff or select a specified active task's mode.",
         {
             "mode": {"type": "string", "enum": list(MODES)},
             "task_id": {"type": "string", "maxLength": 256},
             "session_id": {"type": "string", "maxLength": 256},
             "turn_id": {"type": "string", "maxLength": 256},
+            "handoff_token": {"type": "string", "maxLength": 32},
+            "prompt_receipt": {"type": "string", "maxLength": 32},
         },
         ["mode"],
         destructive=True,

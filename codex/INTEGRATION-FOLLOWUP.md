@@ -1,5 +1,32 @@
 # Picker and child-linkage follow-up
 
+## November 3, 2026 candidate
+
+The prior installed Desktop retest confirmed a usable picker, save and
+recalculate controls, automatic app follow-ups, child registration, and parent
+completion. Throughput reached the app follow-up but the prompt hook recorded
+Balanced and left the one-time token pending. The child Stop hook reported
+`identity-mismatch` and the child remained active.
+
+The scoped rollout shows the app-message placeholder in the prompt and the
+token in the later app input. For that host path the prompt hook provides a
+short-lived receipt. The follow-up presents the app token and that receipt to
+`select_task_mode`, which validates both, consumes them once and applies the
+selection to that exact turn. Hosts that pass the token in the prompt retain
+direct hook consumption. No conversation scan is used to recover the token.
+
+Codex documents a parent-scoped `SubagentStop` with a separate
+`agent_transcript_path`. The new handler verifies the parent and child headers
+and the recorded parent or child turn before completing the unique child
+measurement. It reads child tokens from the child transcript and preserves
+legacy child-scoped Stop support. Regressions for both failures fail against the
+previous runtime and pass with the repairs. Desktop acceptance for
+`0.5.0+codex.20261103233201` is pending.
+
+[Codex hook input fields](https://learn.chatgpt.com/docs/hooks#subagentstop)
+
+## November 2, 2026 candidate history
+
 Owner: @Eclipse1231317. Prepared November 2, 2026 (local date).
 Candidate: `0.5.0+codex.20261103023954`. Source baseline: `88c2627`.
 

@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
-  "version": "0.5.0+codex.20261103023954",
-  "runtime_baseline_commit": "88c2627897ba7199d115fbf6b3f49c07bafac29a",
-  "runtime_change": "Schema-valid shared/native UI negotiation, content-qualified resource, header-bound distinct session/thread child linkage and fixed diagnostic reasons",
+  "version": "0.5.0+codex.20261103233201",
+  "runtime_baseline_commit": "844b49af2568d59bee46744e6882e27454d9a0de",
+  "runtime_change": "Turn-bound picker handoff confirmation and verified parent-scoped child Stop completion",
   "fingerprint_scope": "Exact bytes of the local Windows source payload; compare all files with the installed payload",
   "files": [
     {
       "path": ".codex-plugin/plugin.json",
-      "sha256": "8a0e9499460537e213e09620569fb3075b3eb702980ee4419d664f0b7de7720a",
+      "sha256": "64a7ca801ebf699b91d49e5684f879542f4334e7c6167e1c91977e0c2c679e18",
       "bytes": 1476
     },
     {
@@ -17,8 +17,8 @@
     },
     {
       "path": "assets/control_center.html",
-      "sha256": "168e83b522f5260e2db681c0d7a75b0e65e90e8f6a7683baec18f68559ee14d9",
-      "bytes": 19842
+      "sha256": "44493973c05603ea944aaa768617a2af48ee81e3d972ef49b1cd7092154c30e4",
+      "bytes": 19810
     },
     {
       "path": "hooks/agent_efficiency_hook.py",
@@ -37,8 +37,8 @@
     },
     {
       "path": "scripts/agent_efficiency.py",
-      "sha256": "ae83a2936a14002e92f6be437dbe29e3ffa8c85586c1963f881df9c8b179384a",
-      "bytes": 182188
+      "sha256": "226515ae9f26b2c2eca66303b9a92b845d1c21fd883200d97e9cc20a23299261",
+      "bytes": 188269
     },
     {
       "path": "scripts/app_server_client.py",
@@ -67,8 +67,8 @@
     },
     {
       "path": "scripts/mcp_server.py",
-      "sha256": "10c2d6a5f3e3afe9dba1603597ae7cdb9a1246bacc92c0a54552f07f42329fe4",
-      "bytes": 28451
+      "sha256": "6ab85d28d245a8fb0b0ef73fca89c3be950c63270d6f0cf6e505ffb76c69e423",
+      "bytes": 28683
     },
     {
       "path": "skills/manage-agent-efficiency/agents/openai.yaml",
@@ -82,8 +82,8 @@
     },
     {
       "path": "skills/manage-agent-efficiency/references/telemetry.md",
-      "sha256": "a915895c173d00ed04436df3e7d42e4831d17359011f993a3bdf02f43ad2a65c",
-      "bytes": 9272
+      "sha256": "609059cef8d17822cd9beda1224299533cba13a08f66e61adfb89c8bc198f3f6",
+      "bytes": 9819
     },
     {
       "path": "skills/manage-agent-efficiency/SKILL.md",

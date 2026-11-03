@@ -2,9 +2,9 @@
 
 Owner: @Eclipse1231317. Updated October 28, 2026.
 
-November 2 current candidate: `0.5.0+codex.20261103023954`. See
-[INTEGRATION-FOLLOWUP.md](INTEGRATION-FOLLOWUP.md) for the UI/schema and verified
-session/thread fixes. The current full Claude run passed; earlier timing failures
+November 3 candidate: `0.5.0+codex.20261103233201`. See
+[INTEGRATION-FOLLOWUP.md](INTEGRATION-FOLLOWUP.md) for picker confirmation and
+child Stop handling. The November 2 Claude run passed. Earlier timing failures
 remain historical observations in issue 7, not a claimed provider-code fix.
 Issue 6 coordination and contribution access remain pending (no replies and no
 push access when checked November 2). No branch or PR has been published.

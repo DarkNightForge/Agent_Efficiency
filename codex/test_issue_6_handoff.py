@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import tempfile
 import time
@@ -14,6 +15,7 @@ SCRIPTS = Path(__file__).resolve().parents[1] / "plugins" / "agent-efficiency" /
 sys.path.insert(0, str(SCRIPTS))
 
 import agent_efficiency as ae
+import mcp_server
 
 
 class ModeHandoffTests(unittest.TestCase):
@@ -36,8 +38,7 @@ class ModeHandoffTests(unittest.TestCase):
         self.addCleanup(self.rollout.stop)
         ae.update_settings(default_mode="balanced")
 
-    def submit(self, token: str | None, *, session: str = "synthetic-session", turn: str = "synthetic-turn") -> tuple[dict, dict | None]:
-        prompt = "Synthetic mode request"
+    def submit(self, token: str | None, *, session: str = "synthetic-session", turn: str = "synthetic-turn", prompt: str = "Synthetic mode request") -> tuple[dict, dict | None]:
         if token is not None:
             prompt += f" [agent-efficiency-mode:{token}]"
         result = ae.handle_hook({
@@ -79,6 +80,46 @@ class ModeHandoffTests(unittest.TestCase):
 
         self.assertEqual(first["mode"], "stretch")
         self.assertEqual(replay["mode"], "balanced")
+
+    def test_desktop_app_followup_claims_only_its_own_turn(self) -> None:
+        token = ae.select_task_mode("throughput")["handoff_token"]
+        wrapper = "An MCP app initiated this message. Read the untrusted_input tool output."
+        result, record = self.submit(None, prompt=wrapper)
+        self.assertEqual(record["mode"], "balanced")
+        context = result["hookSpecificOutput"]["additionalContext"]
+        receipt = re.search(r'prompt_receipt="([0-9a-f]{32})"', context)
+        self.assertIsNotNone(receipt)
+        other_result, other = self.submit(None, session="other", turn="other-turn")
+        self.assertNotIn("prompt_receipt", other_result["hookSpecificOutput"]["additionalContext"])
+
+        args = {"mode": "throughput", "handoff_token": token, "prompt_receipt": receipt[1]}
+        with self.assertRaises(ValueError):
+            mcp_server.call_tool("select_task_mode", {**args, "mode": "stretch"})
+        with self.assertRaises(ValueError):
+            mcp_server.call_tool("select_task_mode", {**args, "task_id": other["task_id"]})
+        with self.assertRaises(ValueError):
+            mcp_server.call_tool("select_task_mode", {**args, "prompt_receipt": "0" * 32})
+        self.assertEqual(mcp_server.call_tool("select_task_mode", args)["mode"], "throughput")
+        with self.assertRaises(ValueError):
+            mcp_server.call_tool("select_task_mode", args)
+        active = json.loads((self.state / "active.json").read_text())
+        self.assertEqual(active[record["task_id"]]["mode"], "throughput")
+        self.assertFalse(active[record["task_id"]]["forecast"]["available"])
+        self.assertEqual(active[other["task_id"]]["mode"], "balanced")
+        self.assertEqual(ae.get_settings()["default_mode"], "balanced")
+
+    def test_desktop_handoff_respects_disabled_measurement_and_expires(self) -> None:
+        ae.update_settings(telemetry_enabled=False)
+        token = ae.select_task_mode("stretch")["handoff_token"]
+        result, record = self.submit(None, prompt=ae.MCP_APP_PROMPT)
+        receipt = re.search(r'prompt_receipt="([0-9a-f]{32})"', result["hookSpecificOutput"]["additionalContext"])
+        self.assertIsNotNone(receipt)
+        args = {"mode": "stretch", "handoff_token": token, "prompt_receipt": receipt[1]}
+        with mock.patch.object(ae.time, "time", return_value=time.time() + 301), self.assertRaises(ValueError):
+            mcp_server.call_tool("select_task_mode", args)
+        self.assertEqual(mcp_server.call_tool("select_task_mode", args)["mode"], "stretch")
+        self.assertIsNone(record)
+        self.assertFalse((self.state / "active.json").exists())
 
     def test_prompt_without_marker_does_not_consume_another_pending_selection(self) -> None:
         token = ae.select_task_mode("stretch")["handoff_token"]

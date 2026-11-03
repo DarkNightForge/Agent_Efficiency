@@ -244,7 +244,7 @@ for (const bridge of ["native", "postMessage"]) {
     assert.equal(h.calls.length, 1); assert.equal(h.calls[0].name, "select_task_mode"); assert.equal(h.calls[0].args.mode, "stretch");
     const prompt = bridge === "native" ? h.followups[0].prompt : h.followups[0].content[0].text;
     assert.equal(prompt, `Use Agent Efficiency Stretch mode for this task. [agent-efficiency-mode:${TOKEN}]`);
-    assert.match(h.status(), /request sent.*next prompt hook.*default is unchanged/); assert.doesNotMatch(h.status(), /selected for this task/); clean(h);
+    assert.match(h.status(), /request sent.*follow-up for confirmation/); assert.doesNotMatch(h.status(), /selected for this task/); clean(h);
   });
   for (const [name, value] of [
     ["missing token", { mode: "balanced" }],

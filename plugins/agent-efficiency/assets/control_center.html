@@ -200,7 +200,7 @@
           :await request("ui/message",{role:"user",content:[{type:"text",text:prompt}]});
         if(closed)throw failure("closed");
         if(result?.isError)throw failure("tool");
-        $("status").textContent=`${modeLabel} request sent. The next prompt hook must confirm the mode; the default is unchanged.`;
+        $("status").textContent=`${modeLabel} request sent. Check the follow-up for confirmation.`;
       } catch(error) { showFailure("Applying the mode",error); } finally { setBusy(false); }
     };
     function onMessage(event) {
