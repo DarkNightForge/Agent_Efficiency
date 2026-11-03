@@ -72,6 +72,9 @@ verify its explicit parent relationship. A parent count is updated only for one
 unambiguous active parent; child tokens remain in a separate measurement. Child
 correlation references are hashed and bounded. No other transcripts are searched
 to guess a missing parent.
+Session and thread identities are bound only when the designated header verifies
+their relationship. Retained aliases and parent links are hashed references;
+rejection diagnostics use a fixed set of reason labels and bounded counters.
 
 Bounded diagnostics retain hook-event counts, timestamps, fixed refresh-caller
 labels and public module-code fingerprints. They contain no process IDs, local

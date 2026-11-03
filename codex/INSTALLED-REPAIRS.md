@@ -3,6 +3,10 @@
 Owner: @Eclipse1231317. Prepared October 30, 2026.
 Candidate: `0.5.0+codex.20261030235900`. Source baseline: `874043d`.
 
+Historical repair record. The subsequent Desktop test passed state visibility
+and worker refresh but still failed picker and child registration. Current
+work and validation are in [INTEGRATION-FOLLOWUP.md](INTEGRATION-FOLLOWUP.md).
+
 The prior exact installation passed payload identity and parent token accounting
 but failed visible-picker persistence. It also exposed separate state visibility,
 zero parent subagent counts, missing worker attribution and an undersized idle

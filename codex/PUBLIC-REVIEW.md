@@ -2,6 +2,13 @@
 
 Owner: @Eclipse1231317. Updated October 28, 2026.
 
+November 2 current candidate: `0.5.0+codex.20261103023954`. See
+[INTEGRATION-FOLLOWUP.md](INTEGRATION-FOLLOWUP.md) for the UI/schema and verified
+session/thread fixes. The current full Claude run passed; earlier timing failures
+remain historical observations in issue 7, not a claimed provider-code fix.
+Issue 6 coordination and contribution access remain pending (no replies and no
+push access when checked November 2). No branch or PR has been published.
+
 October 30 follow-up: the first installed acceptance did not pass. The repair
 candidate is now `0.5.0+codex.20261030235900`; see
 [INSTALLED-REPAIRS.md](INSTALLED-REPAIRS.md) for the actual changes, validation

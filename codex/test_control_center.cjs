@@ -11,6 +11,15 @@ const source = html.match(/<script>([\s\S]*?)<\/script>/)[1];
 const HANG = Symbol("no response");
 const TOKEN = "0123456789abcdef0123456789abcdef";
 const toolResult = result => ({ structuredContent: { result }, isError: false });
+// MCP Apps uses appInfo, unlike core MCP's clientInfo. Validate before replying
+// so a malformed request cannot appear to mount a working widget in this host.
+function validUiInitialize(params) {
+  return params && typeof params === "object" && !Array.isArray(params)
+    && params.appInfo && typeof params.appInfo.name === "string" && params.appInfo.name.length > 0
+    && typeof params.appInfo.version === "string" && params.appInfo.version.length > 0
+    && typeof params.protocolVersion === "string" && params.protocolVersion.length > 0
+    && params.appCapabilities && typeof params.appCapabilities === "object" && !Array.isArray(params.appCapabilities);
+}
 function center(mode = "balanced") {
   return {
     version: "0.5.0", selected_mode: mode, estimate_scope: "selected", modes: [],
@@ -73,6 +82,14 @@ function harness(bridge, options = {}) {
   const parent = { postMessage(message, origin) {
     assert.equal(origin, "*"); wireMessages.push(message);
     if(message.method === "ui/initialize") {
+      const params = options.transformInitialize ? options.transformInitialize(message.params) : message.params;
+      if(!validUiInitialize(params)) {
+        emit("message", {source:parent,data:{jsonrpc:"2.0",id:message.id,error:{code:-32602,message:"Invalid UI initialization"}}});
+        return;
+      }
+      if(bridge==="native"&&!options.sharedSupport){
+        emit("message",{source:parent,data:{jsonrpc:"2.0",id:message.id,error:{code:-32601,message:"Legacy host"}}});return;
+      }
       if(!options.holdInitialize)respond(message.id, {protocolVersion:options.protocolVersion || "2026-01-26",hostCapabilities:{},hostInfo:{name:"synthetic",version:"1"}});
       return;
     }
@@ -118,7 +135,7 @@ function harness(bridge, options = {}) {
     elements, controls, calls, posts, followups, timers, window, emit, respond, advance, wireMessages, widgetStates,
     click: id => elements.get(id).onclick(),
     status: () => elements.get("status").textContent,
-    state: () => JSON.parse(vm.runInContext("JSON.stringify({pending:pending.size,inFlight:inFlight.size,busy,closed,selected,bridgeReady})", context)),
+    state: () => JSON.parse(vm.runInContext("JSON.stringify({pending:pending.size,inFlight:inFlight.size,busy,closed,selected,bridgeReady,sharedBridge})", context)),
     expire() { if (timers.size) advance(Math.max(...[...timers.values()].map(timer => timer.at)) - clock); },
   };
 }
@@ -335,4 +352,43 @@ test("native: remounted widget restores only its ephemeral mode selection", () =
   assert.equal(h.state().selected, "stretch");
   assert.equal(h.calls.length, 0);
   assert.equal(h.followups.length, 0); clean(h);
+});
+
+test("postMessage: core-MCP clientInfo cannot replace required appInfo", async () => {
+  const h = harness("postMessage", {initial:null,transformInitialize:params=>{
+    const invalid={...params,clientInfo:params.appInfo};delete invalid.appInfo;return invalid;
+  }});
+  await flush(); assert.equal(h.state().bridgeReady, false);
+  assert.equal(h.wireMessages.filter(message=>message.method==="ui/notifications/initialized").length, 0);
+  assert.equal(h.calls.length, 0); assert.equal(h.elements.get("cards").children.length, 0);
+  assert.match(h.status(), /Connecting.*not confirmed/);clean(h);
+});
+
+for(const [label,transform] of [
+  ["missing app version",params=>({...params,appInfo:{name:"test"}})],
+  ["missing capabilities",params=>({...params,appCapabilities:null})],
+])test(`postMessage: ${label} is rejected by the host before mounting`, async()=>{
+  const h=harness("postMessage",{initial:null,transformInitialize:transform});
+  await flush();assert.equal(h.state().bridgeReady,false);assert.equal(h.calls.length,0);clean(h);
+});
+
+test("mixed host: negotiates shared bridge despite native compatibility aliases", async()=>{
+  const h=harness("native",{sharedSupport:true});
+  assert.equal(h.state().sharedBridge,true);
+  await h.click("save");
+  assert.equal(h.posts[0].method,"tools/call");
+  assert.equal(h.calls.length,1);clean(h);
+});
+
+test("legacy host: rejected shared negotiation retains usable native actions", async()=>{
+  const h=harness("native");await flush();
+  assert.equal(h.state().sharedBridge,false);
+  await h.click("save");assert.equal(h.calls.length,1);
+  assert.equal(h.posts.length,0);assert.match(h.status(),/now the default/);clean(h);
+});
+
+test("finalized output preserves a user's ephemeral selection without saving defaults",()=>{
+  const h=harness("native");h.elements.get("cards").children[2].onclick();
+  h.emit("openai:set_globals",{detail:{globals:{toolOutput:populatedCenter("balanced")}}});
+  assert.equal(h.state().selected,"stretch");assert.equal(h.calls.length,0);clean(h);
 });

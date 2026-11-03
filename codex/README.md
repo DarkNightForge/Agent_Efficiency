@@ -16,6 +16,11 @@ windows, and the capacity estimator consumed it without a manual usage reading.
 Current source validation and remaining host acceptance are tracked in
 [PUBLIC-MIGRATION.md](PUBLIC-MIGRATION.md). This candidate is not a published release.
 
+The latest focused corrections are tracked in
+[INTEGRATION-FOLLOWUP.md](INTEGRATION-FOLLOWUP.md): schema-valid widget negotiation,
+content-specific resource identity and header-verified session/thread linkage.
+Their Desktop picker/child acceptance remains separate from source tests.
+
 ## Install
 
 You need Git, Python 3, and a Codex build with plugin support. The plugin has no

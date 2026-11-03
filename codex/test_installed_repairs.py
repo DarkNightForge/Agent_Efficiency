@@ -34,12 +34,13 @@ class InstalledRepairTests(unittest.TestCase):
         (root / ".codex-plugin" / "plugin.json").write_text(json.dumps({"name": "agent-efficiency", "version": version}), encoding="utf-8")
         return root
 
-    def child_event(self, parent="parent", header_id="child", **extra):
-        path = self.base / "child.jsonl"
+    def child_event(self, parent="parent", header_id="child", hook_session="child", hook_agent="child", **extra):
+        path = self.base / "sessions" / "2030" / "01" / "01" / "rollout-child.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps({"type": "session_meta", "payload": {
             "id": header_id, "source": {"subagent": {"thread_spawn": {"parent_thread_id": parent}}}, **extra,
         }}) + "\n", encoding="utf-8")
-        return {"hook_event_name": "SubagentStart", "session_id": "child", "turn_id": "child-turn", "agent_id": "child", "transcript_path": str(path)}
+        return {"hook_event_name": "SubagentStart", "session_id": hook_session, "turn_id": "child-turn", "agent_id": hook_agent, "transcript_path": str(path)}
 
     def test_installed_server_and_host_hook_resolve_same_state_without_migration(self):
         root = self.package()
@@ -107,14 +108,14 @@ class InstalledRepairTests(unittest.TestCase):
     def test_ambiguous_parent_turns_are_not_guessed(self):
         ae.start_task(session_id="parent", turn_id="one")
         ae.start_task(session_id="parent", turn_id="two")
-        self.assertEqual(ae._register_subagent(self.child_event()), (None, False))
+        self.assertEqual(ae._register_subagent(self.child_event())[:2], (None, False))
         active = json.loads((self.state / "active.json").read_text())
         self.assertTrue(all(record["subagents"] == 0 for record in active.values()))
 
     def test_conflicting_header_or_wrong_child_is_not_attributed(self):
         ae.start_task(session_id="parent", turn_id="one")
         for fields in ({"parent_thread_id": "conflicting"}, {"header_id": "other-child"}):
-            self.assertEqual(ae._register_subagent(self.child_event(**fields)), (None, False))
+            self.assertEqual(ae._register_subagent(self.child_event(**fields))[:2], (None, False))
 
     def test_missing_child_header_is_safe_and_retry_at_stop_can_match(self):
         parent = ae.start_task(session_id="parent", turn_id="one")
@@ -132,6 +133,103 @@ class InstalledRepairTests(unittest.TestCase):
         active = json.loads((self.state / "active.json").read_text())
         self.assertNotIn("is_subagent", active[parent["task_id"]])
         self.assertEqual(len(active), 1)
+
+    def test_distinct_session_and_thread_ids_link_complete_and_reconcile(self):
+        parent_path = self.base / "parent.jsonl"
+        parent_path.write_text(json.dumps({"type": "session_meta", "payload": {
+            "id": "parent-thread", "session_id": "parent-session", "source": "vscode",
+        }}) + "\n", encoding="utf-8")
+        ae.handle_hook({"hook_event_name": "UserPromptSubmit", "session_id": "parent-session",
+                        "turn_id": "parent-turn", "transcript_path": str(parent_path)})
+        parent_key = ae._task_key_from_refs(ae.opaque_ref("parent-session", "session"), ae.opaque_ref("parent-turn", "turn"))
+        event = self.child_event(parent="parent-thread", header_id="child-thread", session_id="child-session",
+                                 hook_session="child-session", hook_agent="child-thread")
+        ae.handle_hook(event)
+        ae.handle_hook(event)
+        child_key = ae._task_key_from_refs(ae.opaque_ref("child-session", "session"), ae.opaque_ref("child-turn", "turn"))
+        with Path(event["transcript_path"]).open("a", encoding="utf-8") as handle:
+            for record in ({"type": "turn_context", "payload": {"turn_id": "child-turn"}},
+                           {"type": "event_msg", "payload": {"type": "token_count", "info": {"last_token_usage": {"input_tokens": 3, "output_tokens": 2, "total_tokens": 5}}}}):
+                handle.write(json.dumps(record) + "\n")
+        ae.scan_rollouts(self.base / "sessions")
+        active = json.loads((self.state / "active.json").read_text())
+        self.assertEqual(active[child_key]["tokens"]["total"], 5)
+        self.assertEqual(active[parent_key]["subagents"], 1)
+        self.assertNotIn("tokens", active[parent_key])
+        ae.handle_hook({**event, "hook_event_name": "SubagentStop"})
+        history = ae.list_history()
+        self.assertEqual(len(history), 1)
+        self.assertEqual(history[0]["session_ref"], ae.opaque_ref("child-session", "session"))
+        self.assertEqual(history[0]["thread_ref"], ae.opaque_ref("child-thread", "session"))
+        self.assertEqual(history[0]["parent_thread_ref"], ae.opaque_ref("parent-thread", "session"))
+        self.assertEqual(history[0]["usage_delta"], [])
+        aggregate = {"tokens": {**history[0]["tokens"], "input": 8, "total": 10}, "subagent": True}
+        key = ae._task_key_from_refs(history[0]["thread_ref"], history[0]["turn_ref"])
+        self.assertTrue(ae._reconcile_history_rollouts(self.state / "history.jsonl", {key: aggregate}))
+        self.assertEqual(ae.list_history()[0]["tokens"]["total"], 10)
+        runtime = ae.get_security_status()["runtime"]
+        self.assertEqual(runtime["hook_events"]["SubagentStart"]["link_status_counts"]["matched"], 2)
+        self.assertEqual(runtime["hook_events"]["SubagentStop"]["last_link_status"], "matched")
+        serialized = "".join(p.read_text() for p in self.state.iterdir() if p.suffix in {".json", ".jsonl"})
+        for raw in ("parent-session", "parent-thread", "child-session", "child-thread"):
+            self.assertNotIn(raw, serialized)
+
+    def test_thread_id_alone_cannot_override_conflicting_session_binding(self):
+        event = self.child_event(header_id="child-thread", session_id="real-session",
+                                 hook_session="other-session", hook_agent="child-thread")
+        ae.handle_hook(event)
+        status = ae.get_security_status()["runtime"]["hook_events"]["SubagentStart"]
+        self.assertEqual(status["last_link_status"], "identity-mismatch")
+        self.assertFalse((self.state / "active.json").exists())
+
+    def test_subagent_stop_cannot_complete_a_root_parent_record(self):
+        path = self.base / "root.jsonl"
+        path.write_text(json.dumps({"type": "session_meta", "payload": {"id": "parent", "source": "vscode"}}) + "\n")
+        parent = ae.start_task(session_id="parent", turn_id="one")
+        ae.handle_hook({"hook_event_name": "SubagentStop", "session_id": "parent", "turn_id": "one",
+                        "agent_id": "parent", "transcript_path": str(path)})
+        self.assertIn(parent["task_id"], json.loads((self.state / "active.json").read_text()))
+        self.assertEqual(ae.list_history(), [])
+        self.assertEqual(ae.get_security_status()["runtime"]["hook_events"]["SubagentStop"]["last_link_status"], "not-subagent")
+
+    def test_alias_reconciliation_rejects_ambiguous_active_records(self):
+        reference = ae.opaque_ref("one-thread", "session")
+        turn = ae.opaque_ref("one-turn", "turn")
+        active = {name: {"session_ref": ae.opaque_ref(name, "session"), "thread_ref": reference, "turn_ref": turn}
+                  for name in ("first-session", "second-session")}
+        self.assertIsNone(ae._find_task_by_refs(active, reference, turn))
+        direct = ae._task_key_from_refs(reference, turn)
+        active[direct] = active.pop("first-session")
+        self.assertIsNone(ae._find_task_by_refs(active, reference, turn))
+
+    def test_malformed_saved_link_diagnostic_is_not_returned_or_allowed_to_crash(self):
+        ae.get_settings()
+        ae._atomic_json(self.state / "events.json", {"hook_runtime": {"SubagentStart": {
+            "last_link_status": {"private-path": "not-a-label"},
+            "link_status_counts": {"matched": True, "not-a-label": 1},
+        }}})
+        event = ae.get_security_status()["runtime"]["hook_events"]["SubagentStart"]
+        self.assertIsNone(event["last_link_status"])
+        self.assertEqual(event["link_status_counts"], {})
+
+    def test_widget_resource_identity_changes_with_content_not_local_path(self):
+        first = self.base / "first.html"
+        second = self.base / "second.html"
+        first.write_bytes(b"<html>first</html>")
+        second.write_bytes(first.read_bytes())
+        original = mcp._ui_resource_uri(first)
+        self.assertEqual(original, mcp._ui_resource_uri(second))
+        first.write_bytes(b"<html>second</html>")
+        self.assertNotEqual(original, mcp._ui_resource_uri(first))
+        self.assertNotIn(str(self.base), original)
+
+    def test_diagnostic_reasons_are_fixed_and_do_not_expose_input(self):
+        ae.handle_hook({"hook_event_name": "SubagentStart", "session_id": "private-id", "turn_id": "private-turn"})
+        runtime = ae.get_security_status()["runtime"]
+        event = runtime["hook_events"]["SubagentStart"]
+        self.assertEqual(event["link_status_counts"], {"missing-context": 1})
+        self.assertNotIn("private-id", json.dumps(runtime))
+        self.assertNotIn("private-turn", json.dumps(runtime))
 
     def test_worker_evidence_survives_a_later_prompt_refresh(self):
         snapshot = {"primary": {"limitId": "synthetic", "usedPercent": 20, "windowDurationMins": 300}}

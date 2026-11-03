@@ -33,8 +33,18 @@ from agent_efficiency import (
 )
 
 UI_VERSION = ".".join(VERSION.split(".")[:2])
-UI_URI = f"ui://widget/agent-efficiency-control-center-v{UI_VERSION}.html"
 UI_PATH = Path(__file__).resolve().parents[1] / "assets" / "control_center.html"
+
+
+def _ui_resource_uri(path: Path) -> str:
+    try:
+        revision = hashlib.sha256(path.read_bytes()).hexdigest()[:12]
+    except OSError:
+        revision = "unavailable"
+    return f"ui://widget/agent-efficiency-control-center-v{UI_VERSION}-{revision}.html"
+
+
+UI_URI = _ui_resource_uri(UI_PATH)
 RUNTIME_SERVER_SHA256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
 MAX_MCP_MESSAGE_BYTES = 1 * 1024 * 1024
 MAX_MCP_HEADER_BYTES = 8 * 1024

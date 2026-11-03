@@ -1,6 +1,6 @@
 {
   "name": "agent-efficiency",
-  "version": "0.5.0+codex.20261030235900",
+  "version": "0.5.0+codex.20261103023954",
   "description": "Choose task modes and inspect local measurements and Codex allowance estimates.",
   "author": {
     "name": "Agent Efficiency contributors"

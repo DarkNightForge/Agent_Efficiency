@@ -1,11 +1,12 @@
 # Exact installed-candidate acceptance
 
-Owner: @Eclipse1231317. Updated October 30, 2026. Repair-candidate Desktop results: **pending**.
+Owner: @Eclipse1231317. Updated November 2, 2026. Current-candidate Desktop results: **pending**.
 
-Candidate: `0.5.0+codex.20261030235900`, on `robbie/public-v1-hardening`.
-This repairs the installed findings from source baseline `874043d`: shared state
-resolution, child-context lifecycle, widget initialization/final-output handling
-and bounded runtime/caller diagnostics. The earlier installed test failed;
+Candidate: `0.5.0+codex.20261103023954`, on `robbie/public-v1-hardening`.
+This follows source baseline `88c2627`: the Desktop test verified shared state and
+worker refresh but still failed picker and child linkage. The current changes
+correct the UI handshake and explicit session/thread binding; see
+[INTEGRATION-FOLLOWUP.md](INTEGRATION-FOLLOWUP.md). The earlier installed test failed;
 neither its passes nor its failures count as a test of this new payload.
 [ACCEPTANCE-CANDIDATE.json](ACCEPTANCE-CANDIDATE.json) fingerprints all 17
 tracked plugin payload files, including configuration, launchers, UI and skill.
@@ -38,7 +39,7 @@ hook event, fabricated usage reading or manually completed task record.
    conflict; do not remove unrelated marketplaces or hand-edit global config.
 3. Reopen the desktop app, choose that local source in the Plugins Directory,
    and install/update Agent Efficiency. Confirm full candidate version
-   `0.5.0+codex.20261030235900`. The full version may require installed metadata
+   `0.5.0+codex.20261103023954`. The full version may require installed metadata
    inspection rather than the display label. If unavailable or rejected, record
    a setup blocker; do not claim installation succeeded.
 4. Review and trust this plugin's actual hook commands in the supported hook
@@ -119,7 +120,9 @@ a reviewed packaging disposition instead of declaring byte equality.
 Disk parity is only one check. Tie the loaded skill, enabled hook commands and
 MCP server launcher/working directory to that same installed root using supported
 host metadata. Confirm the live server advertises the expected 13 tools and its
-UI resource is `ui://widget/agent-efficiency-control-center-v0.5.html`. If the
+UI resource matches `mcp_contract.ui_resource`: it includes the first 12 hex
+characters of the inventoried HTML's SHA-256 before `.html`. This makes template
+identity specific to its content. If the
 host hides this connection evidence, mark loaded provenance BLOCKED; a matching
 disk directory alone is not a pass. Never claim all 13 tools were individually
 executed merely because the tool listing contains them.
@@ -135,7 +138,7 @@ anything, publish, bypass permissions, inspect credentials/passkeys, or delete
 plugin state. Stop and report any unexpected sensitive permission prompt.
 
 1. Verify the clean checkout/HEAD and candidate
-0.5.0+codex.20261030235900 using codex/ACCEPTANCE-CANDIDATE.json. Locate the
+0.5.0+codex.20261103023954 using codex/ACCEPTANCE-CANDIDATE.json. Locate the
 loaded installed root from host metadata/skill location and compare all 17
 payload files, source and installed. Tie loaded skill, hooks and MCP server to
 that root. Do not substitute source CLI calls for installed MCP availability.
@@ -176,6 +179,12 @@ If the UI or follow-up fails, preserve that failure rather than repairing it.
 supported, to calculate 23*29 independently without tools or file access. Check
 only this test's records for counters and parent/child separation; absent host
 features are BLOCKED/NOT OBSERVED. Do not force compaction or run expensive work.
+Use this chat's supported subagent activity metadata to obtain its own child
+thread identifier when available. A child's hook session ID can differ from
+its thread ID: match the header-verified thread_ref/parent_thread_ref, not a
+presumed equality with session_ref. If linkage fails, retain only fixed
+last_link_status/link_status_counts diagnostics; do not dump full hook payloads
+or unrelated transcripts to guess a relationship.
 Never manually call start_task/complete_task or inject hook events to replace
 automatic measurements. A Stop hook runs after the response ends, so leave
 completion/token reconciliation verification for Prompt B.

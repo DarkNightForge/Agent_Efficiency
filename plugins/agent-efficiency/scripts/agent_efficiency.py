@@ -44,6 +44,7 @@ VERSION = "0.5.0"
 RUNTIME_CORE_SHA256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
 POLL_CALLERS = frozenset({"unspecified", "worker", "tool", "cli", "control-center", "session-start", "prompt", "completion"})
 HOOK_EVENTS = frozenset({"SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "SubagentStart", "SubagentStop", "PreCompact", "PostCompact", "Stop", "SessionEnd"})
+LINK_STATUSES = frozenset({"matched", "missing-context", "header-unavailable", "identity-mismatch", "not-subagent", "parent-link-missing", "parent-link-conflict", "parent-unmatched", "parent-ambiguous", "child-limit"})
 MODES = ("throughput", "balanced", "stretch")
 MODE_ALIASES = {
     "big-baller": "throughput",
@@ -801,6 +802,14 @@ def _runtime_status(root: Path) -> dict[str, Any]:
             for key in ("seen", "matched") for value in (item.get(key),)
         }
         observations[event]["last_seen_at"] = _epoch(item.get("last_seen_at"))
+        if event in {"SubagentStart", "SubagentStop"}:
+            label = item.get("last_link_status")
+            observations[event]["last_link_status"] = label if isinstance(label, str) and label in LINK_STATUSES else None
+            counts = item.get("link_status_counts", {})
+            observations[event]["link_status_counts"] = {
+                key: min(2**63 - 1, value) for key, value in counts.items()
+                if key in LINK_STATUSES and isinstance(value, int) and not isinstance(value, bool) and value >= 0
+            } if isinstance(counts, dict) else {}
     version = _package_manifest().get("version")
     return {
         "build_version": version if isinstance(version, str) and re.fullmatch(r"[0-9A-Za-z.+_-]{1,128}", version) else None,
@@ -813,7 +822,7 @@ def _runtime_status(root: Path) -> dict[str, Any]:
     }
 
 
-def _observe_hook(event: str, matched: bool = False) -> None:
+def _observe_hook(event: str, matched: bool = False, *, link_status: str | None = None) -> None:
     if event not in HOOK_EVENTS:
         return
     with _locked() as paths:
@@ -827,6 +836,12 @@ def _observe_hook(event: str, matched: bool = False) -> None:
             value = old.get(key, 0)
             item[key] = min(2**63 - 1, max(0, value) + increment) if isinstance(value, int) and not isinstance(value, bool) else increment
         item["last_seen_at"] = _now()
+        if event in {"SubagentStart", "SubagentStop"} and link_status in LINK_STATUSES:
+            old_counts = old.get("link_status_counts", {})
+            counts = {key: min(2**63 - 1, value) for key, value in old_counts.items()
+                      if key in LINK_STATUSES and isinstance(value, int) and not isinstance(value, bool) and value >= 0} if isinstance(old_counts, dict) else {}
+            counts[link_status] = min(2**63 - 1, counts.get(link_status, 0) + 1)
+            item.update(last_link_status=link_status, link_status_counts=counts)
         health[event] = item
         health["core_sha256"] = RUNTIME_CORE_SHA256
         state["hook_runtime"] = health
@@ -2743,16 +2758,26 @@ def _find_task_by_refs(
     if not session_ref:
         return None
     direct = _task_key_from_refs(session_ref, turn_ref)
-    if direct and direct in active:
-        return direct
     matches = [
         (key, record) for key, record in active.items()
-        if _record_ref(record, "session") == session_ref
+        if _rollout_session_ref(record) == session_ref
         and (turn_ref is None or _record_ref(record, "turn") == turn_ref)
     ]
     if not matches:
         return None
+    if len(matches) > 1 and any(record.get("thread_ref") for _, record in matches):
+        return None
+    if direct and direct in active and _rollout_session_ref(active[direct]) == session_ref:
+        return direct
     return max(matches, key=lambda pair: _epoch(pair[1].get("started_at")) or 0)[0]
+
+
+def _rollout_session_ref(record: dict[str, Any]) -> str | None:
+    """Use a header-verified thread alias; retain legacy records unchanged."""
+    thread_ref = record.get("thread_ref")
+    if isinstance(thread_ref, str) and re.fullmatch(r"ae-session-[0-9a-f]{24}", thread_ref):
+        return thread_ref
+    return _record_ref(record, "session")
 
 
 def _policy_decisions(
@@ -2874,17 +2899,18 @@ def _gate_policy_signals(
     return emitted
 
 
-def _register_subagent(payload: dict[str, Any]) -> tuple[str | None, bool]:
-    """Match a child header's explicit parent to one unambiguous active turn."""
-    child_id = payload.get("session_id")
+def _read_hook_identity(payload: dict[str, Any]) -> tuple[dict[str, Any] | None, str]:
+    """Read only bounded header metadata; session and thread IDs may differ."""
+    session_id = payload.get("session_id")
+    agent_id = payload.get("agent_id")
     path = payload.get("transcript_path")
-    if not isinstance(child_id, str) or not child_id or not isinstance(path, str):
-        return None, False
-    parent_ids: set[str] = set()
+    if not isinstance(session_id, str) or not session_id or not isinstance(path, str):
+        return None, "missing-context"
+    saw_header = False
     try:
         handle = _open_rollout_read(Path(path))
         if handle is None:
-            return None, False
+            return None, "header-unavailable"
         with handle:
             for raw, _ in _bounded_complete_lines(handle, start_offset=0, byte_limit=256 * 1024):
                 if raw is None:
@@ -2895,39 +2921,59 @@ def _register_subagent(payload: dict[str, Any]) -> tuple[str | None, bool]:
                     continue
                 if not isinstance(record, dict) or record.get("type") != "session_meta":
                     continue
+                saw_header = True
                 meta = record.get("payload")
-                if not isinstance(meta, dict) or meta.get("id") != child_id:
+                if not isinstance(meta, dict):
+                    continue
+                thread_id = meta.get("id")
+                if (not isinstance(thread_id, str) or not thread_id
+                        or session_id not in (thread_id, meta.get("session_id"))
+                        or (agent_id is not None and agent_id != thread_id)):
                     continue
                 source = meta.get("source")
                 subagent = source.get("subagent") if isinstance(source, dict) else None
                 spawned = subagent.get("thread_spawn") if isinstance(subagent, dict) else None
-                if not isinstance(spawned, dict):
-                    continue
-                for value in (spawned.get("parent_thread_id"), meta.get("parent_thread_id")):
+                parent_ids: set[str] = set()
+                for value in (spawned.get("parent_thread_id") if isinstance(spawned, dict) else None, meta.get("parent_thread_id")):
                     if isinstance(value, str) and value:
                         parent_ids.add(value)
-                break
+                status = "parent-link-missing" if not parent_ids else "parent-link-conflict" if len(parent_ids) != 1 or thread_id in parent_ids else "matched"
+                return {
+                    "thread_ref": opaque_ref(thread_id, "session"),
+                    "is_subagent": isinstance(subagent, dict) and bool(subagent),
+                    "parent_thread_ref": opaque_ref(next(iter(parent_ids)), "session") if status == "matched" else None,
+                }, status
     except OSError:
-        return None, False
-    if len(parent_ids) != 1 or child_id in parent_ids:
-        return None, False
-    parent_ref = opaque_ref(next(iter(parent_ids)), "session")
-    child_ref = opaque_ref(child_id, "session")
+        return None, "header-unavailable"
+    return None, "identity-mismatch" if saw_header else "header-unavailable"
+
+
+def _register_subagent(payload: dict[str, Any]) -> tuple[str | None, bool, str, dict[str, Any] | None]:
+    """Match only an explicit, header-bound child/parent relationship."""
+    identity, status = _read_hook_identity(payload)
+    if identity is None:
+        return None, False, status, None
+    if not identity["is_subagent"]:
+        return None, False, "not-subagent", identity
+    parent_ref = identity["parent_thread_ref"]
+    if not parent_ref:
+        return None, False, status, identity
+    child_ref = identity["thread_ref"]
     with _locked() as paths:
         active = _load_active(paths)
-        candidates = [item for item in active.values() if _record_ref(item, "session") == parent_ref]
+        candidates = [item for item in active.values() if _rollout_session_ref(item) == parent_ref]
         if len(candidates) != 1:
-            return None, False
+            return None, False, "parent-unmatched" if not candidates else "parent-ambiguous", identity
         parent = candidates[0]
         seen = parent.get("subagent_session_refs", [])
         seen = seen if isinstance(seen, list) else []
         if child_ref not in seen:
             if len(seen) >= 512:
-                return parent.get("mode"), False
+                return parent.get("mode"), False, "child-limit", identity
             parent["subagent_session_refs"] = [*seen, child_ref]
             parent["subagents"] = int(parent.get("subagents", 0)) + 1
             _atomic_json(paths["active"], active)
-        return parent.get("mode"), True
+        return parent.get("mode"), True, "matched", identity
 
 
 def handle_hook(payload: dict[str, Any]) -> dict[str, Any] | None:
@@ -2961,6 +3007,7 @@ def handle_hook(payload: dict[str, Any]) -> dict[str, Any] | None:
         )
         if telemetry_enabled:
             transcript = payload.get("transcript_path")
+            identity, _ = _read_hook_identity(payload)
             record = start_task(
                 session_id=session_id,
                 turn_id=turn_id,
@@ -2974,6 +3021,8 @@ def handle_hook(payload: dict[str, Any]) -> dict[str, Any] | None:
             with _locked() as paths:
                 active = _load_active(paths)
                 if record["task_id"] in active:
+                    if identity:
+                        active[record["task_id"]].update(identity)
                     active[record["task_id"]]["usage_before"] = _active_windows()
                     _atomic_json(paths["active"], active)
         else:
@@ -2999,10 +3048,8 @@ def handle_hook(payload: dict[str, Any]) -> dict[str, Any] | None:
         return {} if event in {"Stop", "SubagentStop"} else None
 
     if event == "SubagentStart":
-        parent_mode, matched = _register_subagent(payload)
-        # Only the confirmed child context may create/label a child record.
-        # A parent-context compatibility payload must never relabel its parent.
-        if session_id and turn_id and payload.get("agent_id") == session_id:
+        parent_mode, matched, link_status, identity = _register_subagent(payload)
+        if session_id and turn_id and identity and identity["is_subagent"]:
             child = start_task(session_id=session_id, turn_id=turn_id,
                        mode=parent_mode or settings["default_mode"],
                        complexity=UNCLASSIFIED_COMPLEXITY, model=payload.get("model"),
@@ -3010,12 +3057,16 @@ def handle_hook(payload: dict[str, Any]) -> dict[str, Any] | None:
             with _locked() as paths:
                 active = _load_active(paths)
                 if child["task_id"] in active:
-                    active[child["task_id"]]["is_subagent"] = True
+                    active[child["task_id"]].update(identity)
                     _atomic_json(paths["active"], active)
-        _observe_hook(event, matched)
+        _observe_hook(event, matched, link_status=link_status)
         return None
+    link_status = None
     if event == "SubagentStop":
-        _register_subagent(payload)
+        _, _, link_status, identity = _register_subagent(payload)
+        if not identity or not identity["is_subagent"]:
+            _observe_hook(event, False, link_status=link_status)
+            return {}
 
     with _locked() as paths:
         active = _load_active(paths)
@@ -3029,7 +3080,7 @@ def handle_hook(payload: dict[str, Any]) -> dict[str, Any] | None:
             elif event in {"PreCompact", "PostCompact"}:
                 record["compactions"] = int(record.get("compactions", 0)) + (1 if event == "PostCompact" else 0)
             _atomic_json(paths["active"], active)
-    _observe_hook(event, bool(task_id))
+    _observe_hook(event, bool(task_id), link_status=link_status)
 
     if event in {"Stop", "SubagentStop"}:
         if not telemetry_enabled:
@@ -3744,7 +3795,7 @@ def _reconcile_history_rollouts(path: Path, aggregates: dict[str, dict[str, Any]
             if field in record:
                 record.pop(field, None)
                 changed = True
-        turn_key = _task_key_from_refs(session_ref, turn_ref)
+        turn_key = _task_key_from_refs(_rollout_session_ref(record), turn_ref)
         aggregate = aggregates.get(turn_key) if turn_key else None
         if aggregate:
             if not _token_measurement_available(aggregate) or not _token_measurement_available(record):

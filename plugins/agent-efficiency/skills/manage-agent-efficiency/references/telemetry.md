@@ -36,6 +36,10 @@ Subagent start/stop hooks use the child's own session/turn. A bounded read of it
 designated header verifies an explicit parent relationship; only one unambiguous
 active parent is counted, once per hashed child reference. Child token records
 remain separate. Missing/conflicting metadata is not replaced with a guess.
+Hook session IDs may differ from thread IDs. Only the designated header can bind
+their hashed aliases; reconciliation uses the verified thread reference without
+rewriting the original session reference. Linkage health adds only fixed reason
+labels and bounded counts, never raw identifiers or paths.
 
 Security status includes fixed refresh-caller timestamps, aggregate hook-event
 health, the package build version and public module fingerprints. Its MCP form

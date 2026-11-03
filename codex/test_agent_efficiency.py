@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import hashlib
 import json
 import os
 import sys
@@ -508,7 +509,7 @@ class AgentEfficiencyTests(unittest.TestCase):
         self.assertEqual(ae.build_parser().description, f"Agent Efficiency v{major_minor}")
         self.assertEqual(
             mcp_server.UI_URI,
-            f"ui://widget/agent-efficiency-control-center-v{major_minor}.html",
+            f"ui://widget/agent-efficiency-control-center-v{major_minor}-{hashlib.sha256(mcp_server.UI_PATH.read_bytes()).hexdigest()[:12]}.html",
         )
         listing = mcp_server.handle({"jsonrpc": "2.0", "id": 1, "method": "resources/list", "params": {}})
         self.assertEqual(listing["result"]["resources"][0]["uri"], mcp_server.UI_URI)

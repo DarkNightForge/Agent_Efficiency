@@ -51,7 +51,8 @@ class ReleaseHardeningTests(unittest.TestCase):
         self.assertEqual(ae.VERSION, "0.5.0")
         self.assertEqual(manifest["version"].split("+", 1)[0], ae.VERSION)
         self.assertIn("v0.5", manifest["interface"]["displayName"])
-        self.assertTrue(mcp_server.UI_URI.endswith("v0.5.html"))
+        self.assertTrue(mcp_server.UI_URI.startswith("ui://widget/agent-efficiency-control-center-v0.5-"))
+        self.assertTrue(mcp_server.UI_URI.endswith(".html"))
         self.assertIn('id="version">v0.5.0</span>', html)
         self.assertIn("Status: v0.5.0", readme)
 

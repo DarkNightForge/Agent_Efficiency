@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
-  "version": "0.5.0+codex.20261030235900",
-  "runtime_baseline_commit": "874043d3eb35472f77f589dd1f9a159c45f731d2",
-  "runtime_change": "Installed-host repairs: shared state, widget lifecycle, child attribution, bounded runtime/caller observations",
+  "version": "0.5.0+codex.20261103023954",
+  "runtime_baseline_commit": "88c2627897ba7199d115fbf6b3f49c07bafac29a",
+  "runtime_change": "Schema-valid shared/native UI negotiation, content-qualified resource, header-bound distinct session/thread child linkage and fixed diagnostic reasons",
   "fingerprint_scope": "Exact bytes of the local Windows source payload; compare all files with the installed payload",
   "files": [
     {
       "path": ".codex-plugin/plugin.json",
-      "sha256": "07702ee13f4e0bf7830f20c10567a87737bf66e4bb37ee888216b3cf0dd61077",
+      "sha256": "8a0e9499460537e213e09620569fb3075b3eb702980ee4419d664f0b7de7720a",
       "bytes": 1476
     },
     {
@@ -17,8 +17,8 @@
     },
     {
       "path": "assets/control_center.html",
-      "sha256": "51f4b4d6913f82a2a07d7970dc2021a701dd98bbf42bc9ca22d17d926fca052b",
-      "bytes": 19701
+      "sha256": "168e83b522f5260e2db681c0d7a75b0e65e90e8f6a7683baec18f68559ee14d9",
+      "bytes": 19842
     },
     {
       "path": "hooks/agent_efficiency_hook.py",
@@ -37,8 +37,8 @@
     },
     {
       "path": "scripts/agent_efficiency.py",
-      "sha256": "168451cab8181564cd115f2c796130d7b05434b82aef5ca51ad52f9e1fd772fa",
-      "bytes": 178566
+      "sha256": "ae83a2936a14002e92f6be437dbe29e3ffa8c85586c1963f881df9c8b179384a",
+      "bytes": 182188
     },
     {
       "path": "scripts/app_server_client.py",
@@ -67,8 +67,8 @@
     },
     {
       "path": "scripts/mcp_server.py",
-      "sha256": "f922aeabe825da57d1ecddabd1de702625887827f5ae88c7db971d40a2a929bd",
-      "bytes": 28216
+      "sha256": "10c2d6a5f3e3afe9dba1603597ae7cdb9a1246bacc92c0a54552f07f42329fe4",
+      "bytes": 28451
     },
     {
       "path": "skills/manage-agent-efficiency/agents/openai.yaml",
@@ -82,8 +82,8 @@
     },
     {
       "path": "skills/manage-agent-efficiency/references/telemetry.md",
-      "sha256": "d42ba1b05d9bfd3659a33d13e4e6785b3238476180d32091d8226a216a034cbf",
-      "bytes": 8968
+      "sha256": "a915895c173d00ed04436df3e7d42e4831d17359011f993a3bdf02f43ad2a65c",
+      "bytes": 9272
     },
     {
       "path": "skills/manage-agent-efficiency/SKILL.md",

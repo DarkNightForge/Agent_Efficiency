@@ -166,6 +166,11 @@ October 30 installed findings are addressed in repair candidate
 `0.5.0+codex.20261030235900`; [INSTALLED-REPAIRS.md](INSTALLED-REPAIRS.md)
 supersedes the older candidate's current validation/acceptance status.
 
+The November 2 follow-up is now `0.5.0+codex.20261103023954`; see
+[INTEGRATION-FOLLOWUP.md](INTEGRATION-FOLLOWUP.md) for the remaining UI/child
+corrections and current validation. Historical source passes are not installed
+acceptance of this new payload.
+
 Before v1: coordinate shared docs, obtain formal review, agree the Windows
 permission-prompt disposition, test the exact installed candidate (real MCP/UI
 handoff, applicable hooks, polling and scoped attribution), and inspect CI for
