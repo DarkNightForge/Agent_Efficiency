@@ -51,7 +51,8 @@ class InstalledRepairTests(unittest.TestCase):
         old.write_bytes(b"preserve old records\n")
         with mock.patch.object(ae, "__file__", str(root / "scripts" / "agent_efficiency.py")), mock.patch.dict(os.environ, {}, clear=True):
             with mock.patch.object(Path, "home", return_value=self.base / "home"):
-                self.assertEqual(ae._data_dir(), wanted)
+                # Windows temp paths can contain a short name such as RUNNER~1.
+                self.assertEqual(ae._data_dir(), wanted.resolve())
                 self.assertEqual(ae.get_security_status()["runtime"]["state_source"], "installed-layout")
                 self.assertFalse(wanted.exists())
                 with mock.patch.dict(os.environ, {"PLUGIN_DATA": str(wanted)}):
