@@ -168,7 +168,8 @@ supersedes the older candidate's current validation/acceptance status.
 
 The November 3 follow-up is `0.5.0+codex.20261103233201`. See
 [INTEGRATION-FOLLOWUP.md](INTEGRATION-FOLLOWUP.md) for picker confirmation and
-child Stop handling. Desktop acceptance of this payload is pending.
+child Stop handling, and [PUBLIC-REVIEW.md](PUBLIC-REVIEW.md) for installed
+Desktop evidence and the remaining review items.
 
 Before v1: coordinate shared docs, obtain formal review, agree the Windows
 permission-prompt disposition, test the exact installed candidate (real MCP/UI

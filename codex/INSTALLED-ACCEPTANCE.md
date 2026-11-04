@@ -1,6 +1,9 @@
 # Exact installed-candidate acceptance
 
-Owner: @Eclipse1231317. Updated November 3, 2026. Current-candidate Desktop results: **pending**.
+Owner: @Eclipse1231317. Updated November 3, 2026.
+The current candidate passed the observed picker and measurement checks. Independent
+inspection of the live Desktop MCP process remains open. See
+[PUBLIC-REVIEW.md](PUBLIC-REVIEW.md) for evidence and review items.
 
 Candidate: `0.5.0+codex.20261103233201`, on `robbie/public-v1-hardening`.
 The previous candidate passed picker visibility and child registration in

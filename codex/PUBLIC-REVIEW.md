@@ -1,102 +1,75 @@
 # Codex public PR preparation
 
-Owner: @Eclipse1231317. Updated October 28, 2026.
+Owner: @Eclipse1231317. Updated November 3, 2026.
 
-November 3 candidate: `0.5.0+codex.20261103233201`. See
-[INTEGRATION-FOLLOWUP.md](INTEGRATION-FOLLOWUP.md) for picker confirmation and
-child Stop handling. The November 2 Claude run passed. Earlier timing failures
-remain historical observations in issue 7, not a claimed provider-code fix.
-Issue 6 coordination and contribution access remain pending (no replies and no
-push access when checked November 2). No branch or PR has been published.
+Review branch: `robbie/public-v1-hardening`. Tested runtime commit: `0e500fc`.
+Installed candidate: `0.5.0+codex.20261103233201`. The
+[acceptance inventory](ACCEPTANCE-CANDIDATE.json) identifies its 17 payload files.
 
-October 30 follow-up: the first installed acceptance did not pass. The repair
-candidate is now `0.5.0+codex.20261030235900`; see
-[INSTALLED-REPAIRS.md](INSTALLED-REPAIRS.md) for the actual changes, validation
-and remaining Desktop checks. This supersedes the earlier build identity below.
-Current Codex validation passes; the unchanged Claude suite has a reproducible
-local performance-threshold failure. Do not use the earlier all-green paragraph
-as evidence that all current suites pass, or submit/merge with that blocker hidden.
-The provider-owned timing failure is tracked in
-[issue 7](https://github.com/DarkNightForge/Agent_Efficiency/issues/7). The repair
-candidate is installed with matching payload; its separate live MCP process
-passed a 305-second worker/state/contract check. Desktop acceptance remains
-pending a fresh loaded connection and real UI/hook checks.
+GitHub confirmed that @Eclipse1231317 can read the upstream repository and
+cannot push to it. No fork at `Eclipse1231317/Agent_Efficiency` was visible.
+The upstream repository permits forks. Contribution access and shared
+security wording are tracked in
+[issue #6](https://github.com/DarkNightForge/Agent_Efficiency/issues/6).
 
-Public main remains `4e7651538bcd3bd4e9ab8c9876c2bd9ba3473c5f` after a fresh
-fetch. `robbie/public-v1-hardening` rebased cleanly; it was already current.
-The migration commit is `a1807d38e37218994a1cad3670b6e4f95e14edf7`.
-The acceptance preparation gives the manifest a distinct developer version:
-`0.5.0+codex.20261028213407`. Runtime code is unchanged by that identity update.
+## Draft PR title
 
-The authenticated contributor has read access but no push access, and no pending
-invitation for this repository. No branch or fork was published. Contribution
-access and shared-document coordination were requested from @DarkNightForge in
-[public issue 6](https://github.com/DarkNightForge/Agent_Efficiency/issues/6),
-with the complete proposed patch. The root README and SECURITY.md remain
-unchanged pending coordination. No reply or approval is assumed.
+Harden Codex plugin state, picker handoffs, and task measurements
 
-The installed acceptance procedure is in
-[INSTALLED-ACCEPTANCE.md](INSTALLED-ACCEPTANCE.md). Its inventory records the
-exact local payload; these instructions are preparation, not an acceptance pass.
+## Draft PR body
 
-## Ready-to-use PR title
+The Codex plugin now confines writes to dedicated plugin state, validates and
+bounds inputs, and describes the data it retains and the allowance requests it
+delegates to Codex. The control center applies a one-time mode selection to the
+exact follow-up. For example, selecting Throughput applies it to that task
+while Balanced stays the saved default. The Stop hook verifies the child
+identity and completes its token record separately from the parent's.
 
-Port Codex hardening and reliability fixes; clarify data access and privacy
+The branch also hardens rollout scanning and per-call token accounting,
+preserves measurement integrity when rollouts are truncated, and makes the
+allowance and forecast limits explicit. Changes are scoped to the Codex
+implementation, its tests and CI, and a test-count update in AGENTS.md.
+The root README and SECURITY.md proposal remains in
+[issue #6](https://github.com/DarkNightForge/Agent_Efficiency/issues/6).
 
-## Ready-to-use PR body
+**Validation.** On Windows, the three provider suites ran 666 tests with 659
+passing and seven platform skips. The 65 widget checks, 12 Codex policy
+fixtures, and nine repository verifier checks passed. The unchanged Claude
+timing test exceeded its threshold while suites ran together and passed in
+the serial rerun. Its existing tracking issue stays open.
+[Issue #7](https://github.com/DarkNightForge/Agent_Efficiency/issues/7)
 
-The public Codex implementation was still at v0.4 while reviewed and unpublished
-Codex fixes remained in the earlier checkout. This ports that implementation
-onto public main without importing private history or acceptance reports. It
-adds dedicated-state ownership checks, bounded I/O/processes, validated MCP
-inputs, fair scanning, reset-aware forecasts, identity-safe measurements,
-protocol/widget recovery, one-time mode handoff, and audited per-call accounting
-with truncation quarantine and late-correction handling.
+The installed Desktop candidate matched all 17 payload hashes. Desktop checks
+confirmed the Recalculate success message, saving the existing Balanced
+default, and a one-time Throughput handoff. The tester confirmed all ten
+hooks were trusted. Parent
+and child records completed automatically, with independent per-call token
+checks and the child counted once. The background worker refreshed during the
+idle interval, and a later ordinary prompt used Balanced. The installed MCP
+server advertised the expected 13 tools. The candidate worktree was clean
+when verified separately from the chat's starting checkout.
 
-The wording review removes self-assigned instruction priority and concealed
-spending prompts, narrows skill triggering, and corrects tool effect annotations.
-The Codex privacy notice describes retained pseudonymous metadata, delegated
-authenticated allowance requests, automatic refresh/scanning, retention and
-telemetry opt-out. The developer candidate has a distinct installation version;
-this is not a v1 release or a claim of OpenAI approval.
+**Open review items.** The CLI reported the expected configured MCP launcher
+and working directory. Independent inspection of the live Desktop process
+remains unavailable. Recalculate rendered estimates, while a fresh allowance
+capture was independently verified on an explicit refresh and on the idle
+worker path. No fresh capture was attributed to the Recalculate click.
+Live compaction, SessionEnd, and truncation were outside the Desktop run.
+GitHub CI and formal review are pending. The historical Windows permission
+prompt remains unresolved. A support report is optional.
 
-Ownership: Claude/Hermes implementations and workflows, findings history and
-shared root security documents are unchanged. The small permitted AGENTS.md edit
-updates the test-count/fixture inventory. Shared security corrections are
-proposed separately in issue 6 and remain pending owner coordination.
+@DarkNightForge, could you review the Codex changes and the remaining Desktop
+provenance and shared-document items?
 
-Validation on Windows: 644 Python unit tests run, 637 passed and 7 platform
-skips; 54 widget checks, 12 Codex policy fixtures and 9 repository checks passed.
-The skips cover POSIX FIFO/permissions and Windows symlink privileges. The
-candidate identity/packaging checks are recorded separately after preparation.
-Linux/Node 22 CI and exact installed acceptance remain pending; update this
-paragraph with their actual results before opening the PR.
+## Publish the draft
 
-Candidate preparation on October 28: all 16 release/layout tests and all 9
-repository verifier checks passed with live refresh disabled in disposable
-homes/state. The initial deep Windows temporary path exceeded the path limit;
-the verifier suite passed in a shorter temporary location. The standalone CLI
-check used normal script-directory imports after `-I` excluded sibling modules.
-Neither harness correction changed runtime code. Payload inventory parity and
-local-document checks were also verified. These are not installed-host results.
+Use upstream write access if granted, or an approved fork. Fetch and rebase
+on upstream main immediately before pushing. Verify the proposed branch and
+test evidence after rebase, then push the review branch and open a draft PR
+against upstream main. The draft body asks @DarkNightForge to review it. A
+formal GitHub review request requires upstream write access.
 
-Release gates: formal review, shared-doc disposition, the Windows permission-
-prompt disposition, installed source/payload parity and host behavior, then CI
-for the proposed merge commit and final release metadata. Source tests do not
-close private issues or clear those gates.
-
-Distribution: this hook-containing build is for manual desktop installation and
-repository distribution. Current OpenAI guidance excludes lifecycle-hook plugins
-from the universal public directory. A directory-compatible build would require
-a separately approved design decision; it is not part of this port.
-
-## Before publication
-
-Resolve contribution access or an authorized fork workflow. Re-fetch and rebase
-on public main immediately before any push. Recheck the shared patch against
-that base and obtain coordination before applying it. Inspect all three suites
-and relevant CI for the final proposed commit. Update the draft validation
-paragraph with actual acceptance/CI results; do not mark pending checks passed.
-
-Official packaging basis:
-[Package your plugin](https://developers.openai.com/plugins/build/plugins#bundled-mcp-servers-and-lifecycle-hooks).
+Check the Codex workflow on the published commit. The Claude and Hermes
+workflows filter by provider paths, so this branch may require a maintainer
+to arrange runs if those remote checks are required. Report their actual
+status and the separate local suite results.

@@ -20,8 +20,10 @@ Codex documents a parent-scoped `SubagentStop` with a separate
 and the recorded parent or child turn before completing the unique child
 measurement. It reads child tokens from the child transcript and preserves
 legacy child-scoped Stop support. Regressions for both failures fail against the
-previous runtime and pass with the repairs. Desktop acceptance for
-`0.5.0+codex.20261103233201` is pending.
+previous runtime and pass with the repairs. Desktop retests of
+`0.5.0+codex.20261103233201` confirmed the different-mode handoff, separate
+child completion, and worker refresh. See [PUBLIC-REVIEW.md](PUBLIC-REVIEW.md)
+for the consolidated evidence and remaining Desktop process inspection.
 
 [Codex hook input fields](https://learn.chatgpt.com/docs/hooks#subagentstop)
 
