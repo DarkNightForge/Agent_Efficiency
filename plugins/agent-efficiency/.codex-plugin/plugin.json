@@ -1,7 +1,7 @@
 {
   "name": "agent-efficiency",
-  "version": "0.4.0+codex.20260902050808",
-  "description": "Apply efficiency modes with live Codex allowance policy and exact turn telemetry.",
+  "version": "0.5.0+codex.20261103233201",
+  "description": "Choose task modes and inspect local measurements and Codex allowance estimates.",
   "author": {
     "name": "Agent Efficiency contributors"
   },
@@ -18,9 +18,9 @@
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
-    "displayName": "Agent Efficiency v0.4",
-    "shortDescription": "Compare task speed, token use, and capacity",
-    "longDescription": "Choose Throughput, Balanced, or Stretch; use live Codex allowance windows; save defaults; and measure completed work.",
+    "displayName": "Agent Efficiency v0.5",
+    "shortDescription": "Task modes, local measurements, and capacity estimates",
+    "longDescription": "Choose Throughput, Balanced, or Stretch; inspect local task measurements; estimate capacity from Codex allowance snapshots; and review storage safeguards. Allowance refresh delegates authenticated requests to Codex.",
     "developerName": "Agent Efficiency contributors",
     "category": "Productivity",
     "capabilities": [
@@ -31,7 +31,8 @@
     "defaultPrompt": [
       "Compare all Agent Efficiency modes for this task.",
       "Run this task using my default efficiency mode.",
-      "Show my Agent Efficiency settings and capacity."
+      "Show my Agent Efficiency settings and capacity.",
+      "Show my Agent Efficiency security and privacy status."
     ],
     "brandColor": "#6D5EF5"
   }

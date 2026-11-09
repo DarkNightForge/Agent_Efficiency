@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import hashlib
 import json
 import os
 import sys
@@ -22,12 +23,15 @@ import mcp_server
 class AgentEfficiencyTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
+        self.external_temp = tempfile.TemporaryDirectory()
+        self.external_root = Path(self.external_temp.name)
         os.environ["AGENT_EFFICIENCY_DATA"] = self.temp.name
         os.environ["AGENT_EFFICIENCY_DISABLE_LIVE_REFRESH"] = "1"
 
     def tearDown(self) -> None:
         os.environ.pop("AGENT_EFFICIENCY_DATA", None)
         os.environ.pop("AGENT_EFFICIENCY_DISABLE_LIVE_REFRESH", None)
+        self.external_temp.cleanup()
         self.temp.cleanup()
 
     def test_defaults_and_persistent_setting(self) -> None:
@@ -72,7 +76,7 @@ class AgentEfficiencyTests(unittest.TestCase):
     # asserts the same outcome against `rate_limits_updated_at`, which is the
     # field that now carries rate-limit freshness.
 
-    def _burn_10_percent_per_hour(self) -> None:
+    def _burn_10_percent_per_hour(self, reset: float) -> None:
         """Seed one completed task worth 10% of the window in one hour."""
         history = {
             "mode": "efficiency",
@@ -81,17 +85,20 @@ class AgentEfficiencyTests(unittest.TestCase):
             "usage_delta": [{
                 "limit_id": "five-hour",
                 "same_window": True,
+                "window_instance": ae._window_instance({"limit_id": "five-hour", "resets_at": reset}),
                 "used_percent_delta": 10,
+                "observation_seconds": 3600,
             }],
         }
         (Path(self.temp.name) / "history.jsonl").write_text(json.dumps(history) + "\n", encoding="utf-8")
 
     def _forecast(self, hours_to_reset: float) -> dict:
-        self._burn_10_percent_per_hour()
+        reset = time.time() + hours_to_reset * 3600
+        self._burn_10_percent_per_hour(reset)
         capacity = ae.estimate_capacity("efficiency", [{
             "limit_id": "five-hour",
             "used_percent": 50,
-            "resets_at": time.time() + hours_to_reset * 3600,
+            "resets_at": reset,
         }])
         return capacity["windows"][0]
 
@@ -177,11 +184,12 @@ class AgentEfficiencyTests(unittest.TestCase):
         self.assertTrue(window["credits"]["hasCredits"])
 
     def test_credit_backed_limit_is_cost_ahead_not_lockout(self) -> None:
-        self._burn_10_percent_per_hour()
+        reset = time.time() + 10 * 3600
+        self._burn_10_percent_per_hour(reset)
         capacity = ae.estimate_capacity("efficiency", [{
             "limit_id": "five-hour",
             "used_percent": 90,
-            "resets_at": time.time() + 10 * 3600,
+            "resets_at": reset,
             "credits": {"hasCredits": True},
         }])
         window = capacity["windows"][0]
@@ -190,7 +198,7 @@ class AgentEfficiencyTests(unittest.TestCase):
         hard_wall = ae.estimate_capacity("efficiency", [{
             "limit_id": "five-hour",
             "used_percent": 90,
-            "resets_at": time.time() + 10 * 3600,
+            "resets_at": reset,
             "credits": {"hasCredits": True},
             "spend_control_reached": True,
         }])
@@ -219,7 +227,7 @@ class AgentEfficiencyTests(unittest.TestCase):
         self.assertEqual(tokens["model_calls"], 2)
 
     def test_session_end_recovers_tokens_if_stop_did_not_finish(self) -> None:
-        rollout = Path(self.temp.name) / "session-end.jsonl"
+        rollout = self.external_root / "session-end.jsonl"
         records = [{"type": "turn_context", "payload": {"turn_id": "turn"}}, {"type": "event_msg", "payload": {"type": "token_count", "info": {"last_token_usage": {"input_tokens": 12, "output_tokens": 3, "total_tokens": 15}}}}]
         rollout.write_text("\n".join(json.dumps(record) for record in records) + "\n", encoding="utf-8")
         ae.start_task(session_id="session", turn_id="turn", transcript_path=str(rollout), rollout_offset=0)
@@ -260,7 +268,7 @@ class AgentEfficiencyTests(unittest.TestCase):
         self.assertEqual(tokens["model_calls"], 1)
 
     def test_rollout_cache_persists_only_opaque_file_and_turn_references(self) -> None:
-        sessions_root = Path(self.temp.name) / "sessions-private-user"
+        sessions_root = self.external_root / "sessions-private-user"
         rollout_dir = sessions_root / "2026" / "08" / "21"
         rollout_dir.mkdir(parents=True)
         rollout = rollout_dir / "rollout-private.jsonl"
@@ -342,7 +350,7 @@ class AgentEfficiencyTests(unittest.TestCase):
         self.assertNotIn("SECRET", stored)
 
     def test_hook_state_uses_opaque_references_and_never_persists_rollout_paths(self) -> None:
-        private_root = Path(self.temp.name) / "private-user-name"
+        private_root = self.external_root / "private-user-name"
         private_root.mkdir()
         rollout = private_root / "rollout-private-session.jsonl"
         session_id = "private-session-identifier"
@@ -414,11 +422,11 @@ class AgentEfficiencyTests(unittest.TestCase):
 
     def test_empty_rollout_scan_sanitizes_legacy_history(self) -> None:
         history_path = Path(self.temp.name) / "history.jsonl"
-        sessions_root = Path(self.temp.name) / "sessions"
+        sessions_root = self.external_root / "sessions"
         sessions_root.mkdir()
         session_id = "legacy-private-session"
         turn_id = "legacy-private-turn"
-        transcript_path = str(Path(self.temp.name) / "private-user" / "rollout.jsonl")
+        transcript_path = str(self.external_root / "private-user" / "rollout.jsonl")
         history_path.write_text(json.dumps({
             "task_id": "legacy-task",
             "session_id": session_id,
@@ -501,7 +509,7 @@ class AgentEfficiencyTests(unittest.TestCase):
         self.assertEqual(ae.build_parser().description, f"Agent Efficiency v{major_minor}")
         self.assertEqual(
             mcp_server.UI_URI,
-            f"ui://widget/agent-efficiency-control-center-v{major_minor}.html",
+            f"ui://widget/agent-efficiency-control-center-v{major_minor}-{hashlib.sha256(mcp_server.UI_PATH.read_bytes()).hexdigest()[:12]}.html",
         )
         listing = mcp_server.handle({"jsonrpc": "2.0", "id": 1, "method": "resources/list", "params": {}})
         self.assertEqual(listing["result"]["resources"][0]["uri"], mcp_server.UI_URI)

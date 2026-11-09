@@ -12,7 +12,8 @@ Mode policies never override user intent, safety rules, workspace permissions, o
 
 ## Estimator inputs
 
-Use all available inputs:
+Use relevant available inputs, without requesting secrets, full conversations
+or unrelated user information solely to improve an estimate:
 
 - task complexity and future-task profile;
 - model and reasoning effort;

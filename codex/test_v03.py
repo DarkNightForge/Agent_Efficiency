@@ -46,9 +46,48 @@ class V03Tests(unittest.TestCase):
         plugin = ROOT / "plugins" / "agent-efficiency"
         config = json.loads((plugin / ".mcp.json").read_text(encoding="utf-8"))
         server = config["mcpServers"]["agent-efficiency"]
+        sandbox = Path(self.temp.name)
+        fake_home = sandbox / "home"
+        fake_sessions = fake_home / ".codex" / "sessions"
+        fake_sessions.mkdir(parents=True)
+        canary = fake_sessions / "rollout-handshake-canary.jsonl"
+        canary_bytes = b'{"type":"session_meta","payload":{"id":"synthetic-handshake-only"}}\n'
+        canary.write_bytes(canary_bytes)
+        canary_stat = canary.stat()
+        fake_state = sandbox / "plugin-state"
+        unavailable_codex = sandbox / "unavailable-codex.exe"
+        self.assertFalse(unavailable_codex.exists())
         env = os.environ.copy()
-        env["AGENT_EFFICIENCY_DATA"] = self.temp.name
-        env["AGENT_EFFICIENCY_DISABLE_LIVE_REFRESH"] = "1"
+        # The manifest starts the real background scanner. Disabling live
+        # allowance refresh alone does not stop it reading default rollouts.
+        # Isolate both Windows and POSIX home conventions before launching it.
+        drive, home_path = os.path.splitdrive(str(fake_home))
+        env.update({
+            "HOME": str(fake_home), "USERPROFILE": str(fake_home),
+            "HOMEDRIVE": drive, "HOMEPATH": home_path,
+            "CODEX_HOME": str(fake_home / ".codex"),
+            "XDG_CONFIG_HOME": str(fake_home / ".config"),
+            "XDG_CACHE_HOME": str(fake_home / ".cache"),
+            "APPDATA": str(fake_home / "AppData" / "Roaming"),
+            "LOCALAPPDATA": str(fake_home / "AppData" / "Local"),
+            "AGENT_EFFICIENCY_DATA": str(fake_state),
+            "AGENT_EFFICIENCY_DISABLE_LIVE_REFRESH": "1",
+            # The fake home cannot discover the host's bundled runtime.
+            "AGENT_EFFICIENCY_PYTHON": sys.executable,
+            "AGENT_EFFICIENCY_CODEX_BIN": str(unavailable_codex),
+            "PYTHONDONTWRITEBYTECODE": "1", "PYTHONNOUSERSITE": "1",
+        })
+        env.pop("PYTHONHOME", None)
+        env.pop("PYTHONPATH", None)
+        home_probe = subprocess.run(
+            [sys.executable, "-B", "-c", "from pathlib import Path; print(Path.home().resolve())"],
+            text=True, capture_output=True, timeout=10, env=env, check=False,
+        )
+        self.assertEqual(home_probe.returncode, 0, home_probe.stderr)
+        self.assertEqual(Path(home_probe.stdout.strip()), fake_home.resolve())
+        self.assertEqual(Path(env["CODEX_HOME"]) / "sessions", fake_sessions)
+        self.assertTrue(Path(env["AGENT_EFFICIENCY_DATA"]).is_relative_to(sandbox))
+        self.assertEqual(env["AGENT_EFFICIENCY_PYTHON"], sys.executable)
         request = "\n".join((
             json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}),
             json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}}),
@@ -71,6 +110,9 @@ class V03Tests(unittest.TestCase):
         self.assertEqual(len(tools), 13)
         self.assertIn("show_control_center", tools)
         self.assertIn("get_forecast_diagnostics", tools)
+        self.assertEqual(canary.read_bytes(), canary_bytes)
+        self.assertEqual(canary.stat().st_mtime_ns, canary_stat.st_mtime_ns)
+        self.assertEqual(list(fake_sessions.iterdir()), [canary])
 
     def test_legacy_mode_names_migrate_without_being_displayed(self) -> None:
         settings = Path(self.temp.name) / "settings.json"

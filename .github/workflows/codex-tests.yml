@@ -7,28 +7,49 @@ on:
     paths: ['codex/**', 'plugins/**', '.github/workflows/codex-tests.yml']
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+env:
+  AGENT_EFFICIENCY_DISABLE_LIVE_REFRESH: '1'
+  PYTHONDONTWRITEBYTECODE: '1'
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
         python-version: ['3.11', '3.12', '3.13']
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
 
       # Same rule as the claude-code job: no install step. The plugin is
-      # dependency-free by design and the tests are stdlib-only. A `pip install`
-      # appearing here is a red flag.
+      # dependency-free by design. Python tests use stdlib; widget tests use
+      # Node's built-in test/vm modules. Neither pip nor npm packages are needed.
       #
       # Note the split layout: the implementation lives in plugins/agent-efficiency/
       # while its tests live in codex/. Both paths trigger this workflow.
       - name: Run tests
         run: python -m unittest discover -s codex -p "test_*.py" -v
+
+      - name: Run isolated widget bridge tests
+        run: node --test codex/test_control_center.cjs
+
+      - name: Validate plugin structure and manifest
+        env:
+          AGENT_EFFICIENCY_DATA: ${{ runner.temp }}/ae-verify
+        run: python plugins/agent-efficiency/scripts/agent_efficiency.py --json verify
 
       - name: Check the control center reports honestly with no usage data
         env:
@@ -48,13 +69,21 @@ jobs:
 
   windows-test:
     runs-on: windows-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - name: Run tests
         run: python -m unittest discover -s codex -p "test_*.py" -v
+      - name: Run isolated widget bridge tests
+        run: node --test codex/test_control_center.cjs
       - name: Verify plugin structure and Windows launcher
         shell: pwsh
         env:

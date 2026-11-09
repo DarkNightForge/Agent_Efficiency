@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "version": "0.5.0+codex.20261103233201",
+  "runtime_baseline_commit": "844b49af2568d59bee46744e6882e27454d9a0de",
+  "runtime_change": "Turn-bound picker handoff confirmation and verified parent-scoped child Stop completion",
+  "fingerprint_scope": "Exact bytes of the local Windows source payload; compare all files with the installed payload",
+  "files": [
+    {
+      "path": ".codex-plugin/plugin.json",
+      "sha256": "64a7ca801ebf699b91d49e5684f879542f4334e7c6167e1c91977e0c2c679e18",
+      "bytes": 1476
+    },
+    {
+      "path": ".mcp.json",
+      "sha256": "816614065a8695785f0f80d44fded9fc84591ce6a2a9eaf2cf8dbcc085267cc5",
+      "bytes": 257
+    },
+    {
+      "path": "assets/control_center.html",
+      "sha256": "44493973c05603ea944aaa768617a2af48ee81e3d972ef49b1cd7092154c30e4",
+      "bytes": 19810
+    },
+    {
+      "path": "hooks/agent_efficiency_hook.py",
+      "sha256": "4ba6f682c8675157a2305ae943f0c2d5bab86be00cf41692a483dd1cf12633dd",
+      "bytes": 921
+    },
+    {
+      "path": "hooks/hooks.json",
+      "sha256": "3ec921919981360780c070ce2272e4791fa5e4cba3ddafd8cd0d846d34dbe2b3",
+      "bytes": 4690
+    },
+    {
+      "path": "scripts/.gitattributes",
+      "sha256": "b94d398ee26be067e2b90f403b515ae0b204617be48bb2ebea08d40c65cf752a",
+      "bytes": 34
+    },
+    {
+      "path": "scripts/agent_efficiency.py",
+      "sha256": "226515ae9f26b2c2eca66303b9a92b845d1c21fd883200d97e9cc20a23299261",
+      "bytes": 188269
+    },
+    {
+      "path": "scripts/app_server_client.py",
+      "sha256": "e0cca547f01777e9c3e3aa0da96a53ef855c83b9e2717e54fce46175aa7809d7",
+      "bytes": 5329
+    },
+    {
+      "path": "scripts/budget_policy.py",
+      "sha256": "28a7a143e114c911d00dc2d8420b7336180c7e9de406a5169f5f2490a2da202c",
+      "bytes": 6852
+    },
+    {
+      "path": "scripts/codex_telemetry.py",
+      "sha256": "4bfdf7fc257996b9963037a555bd421a8ea06bbbb009470ddbc2138b325236fd",
+      "bytes": 7731
+    },
+    {
+      "path": "scripts/git-agent-efficiency",
+      "sha256": "5a8f9371d92705a76b52a6a02b29f71b302d749a2a8284bb63797d84a6f705d1",
+      "bytes": 944
+    },
+    {
+      "path": "scripts/launch_python.ps1",
+      "sha256": "e296013c149fbb994fe6ce2d6036d4aca7e05bc2bfbf7869efb01bff942d5642",
+      "bytes": 3146
+    },
+    {
+      "path": "scripts/mcp_server.py",
+      "sha256": "6ab85d28d245a8fb0b0ef73fca89c3be950c63270d6f0cf6e505ffb76c69e423",
+      "bytes": 28683
+    },
+    {
+      "path": "skills/manage-agent-efficiency/agents/openai.yaml",
+      "sha256": "9e500749eb58f1871cbec1686a5c5ffb35a3db09be7425f785489d439adf90a5",
+      "bytes": 246
+    },
+    {
+      "path": "skills/manage-agent-efficiency/references/modes.md",
+      "sha256": "af7529a4a20952fdf4d72e7dd37003f8aff361a96ab1f5079a67441901140866",
+      "bytes": 1909
+    },
+    {
+      "path": "skills/manage-agent-efficiency/references/telemetry.md",
+      "sha256": "609059cef8d17822cd9beda1224299533cba13a08f66e61adfb89c8bc198f3f6",
+      "bytes": 9819
+    },
+    {
+      "path": "skills/manage-agent-efficiency/SKILL.md",
+      "sha256": "c9e9ec15dc6a18d89b4842e5d19fc4dc2e0d2bd27be2cd95aa2656ad927b4703",
+      "bytes": 7931
+    }
+  ]
+}
