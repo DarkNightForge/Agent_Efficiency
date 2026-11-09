@@ -1,170 +1,59 @@
-diff --git a/README.md b/README.md
 --- a/README.md
 +++ b/README.md
-@@ -360,4 +360,7 @@
+@@ -360,4 +360,5 @@
 -What it reads and what it leaves alone: [`SECURITY.md`](SECURITY.md). Short
 -version: the Claude Code implementation makes no network requests and reads no
 -credentials. It reads your local transcripts and the JSON Claude Code passes to
 -the status line. No analytics, no third party.
-+Data and authentication boundaries differ by provider. See [`SECURITY.md`](SECURITY.md)
-+and the [Codex privacy notice](codex/PRIVACY.md). The Codex plugin keeps local
-+measurement state and delegates authenticated allowance reads to Codex App Server,
-+including automatic refresh from hooks and its MCP worker. It is not offline-only.
-+Use supported host permissions and hook trust; never commit credentials or raw
-+private usage history. The provider-specific implementation pages describe their
-+own reads, retention and controls.
-diff --git a/SECURITY.md b/SECURITY.md
++Data access and authentication differ by provider. See
++[`SECURITY.md`](SECURITY.md) and the [Codex privacy notice](codex/PRIVACY.md).
++The Codex plugin stores local measurement metadata and delegates authenticated
++allowance reads to Codex, including automatic refresh from hooks and the MCP
++worker. Review the provider's controls and retained data before enabling it.
 --- a/SECURITY.md
 +++ b/SECURITY.md
-@@ -3,62 +3,89 @@
+@@ -3,4 +3,4 @@
 -This tool reads your local coding-agent transcripts and the usage figures your
 -coding agent already hands its status line. That deserves a plain answer to
 -"what does it actually do with my data," so the sections below are written
 -against the code, and each claim names the file you can check it in.
--
--## Reporting a vulnerability
--
--Open a [security advisory](https://github.com/DarkNightForge/Agent_Efficiency/security/advisories/new)
--rather than a public issue. If advisories are unavailable to you, open an issue
--saying only that you have a security report and asking for a contact — no
--details in the issue text.
--
--Expect an acknowledgement within a week. This is a small project maintained by
--volunteers; there is no bounty and no formal SLA, and pretending otherwise would
--be its own kind of dishonesty.
--
++Provider implementations have separate data boundaries. The local-read and
++installer details below describe Claude Code unless another provider is named.
++The [Codex privacy notice](codex/PRIVACY.md) covers the Codex plugin's local
++metadata, state writes, retention, delegated requests and controls.
+@@ -19 +19 @@
 -## What it reads
--
--| Path | Why | Mode |
--|---|---|---|
--| `~/.claude/projects/**/*.jsonl` | token counts and timestamps per turn | read-only |
--| status line JSON, on stdin | `rate_limits`: the vendor's own utilization and reset times | read; the input is passed on unchanged to your own status line |
--| the session transcript's mtime | to date a status line reading | `stat` only, never opened for this |
--| `~/.claude/usage-budget/` | its own derived state | read/write |
--| `~/.claude/settings.json` | to wire and verify hooks and the status line | read; written **only** by `install.sh` |
--
--Transcripts are parsed for three things and no others: the per-turn `usage`
--block, the timestamp, and the **names** of `tool_use` blocks (`Bash`, `Edit`, …)
--so spend can be attributed per tool. Message text is never read, and neither are
--tool *inputs* — the parser takes `b["name"]` from a `tool_use` block and nothing
--else. See the transcript loop in
--[`claude-code/usage_budget.py`](claude-code/usage_budget.py).
--
--Tool names are still information about you: they reveal what kinds of operation
++## Claude Code local reads
+@@ -37 +37 @@
 -you run, though not on what. Nothing is transmitted either way — see below.
--
--## What leaves your machine
--
++you run, though not on what. Provider-specific outbound behavior follows.
+@@ -41 +41 @@
 -**Nothing.** No part of this repository opens a socket:
--
--- **`claude-code/`** makes **no network calls**. The vendor's usage meter
--  arrives from Claude Code itself, as `rate_limits` in the JSON it pipes to
--  your status line; see `record_statusline()` in
--  [`claude-code/usage_budget.py`](claude-code/usage_budget.py).
--
++Outbound behavior depends on the provider implementation.
+@@ -48,2 +48,6 @@
 -- **`plugins/` (Codex)** makes **no network calls at all**. Its "telemetry" is a
 -  local store on your disk, despite the name.
--- **`hermes/`** never fetches anything itself; it receives Hermes's own
--  `fetch_account_usage` as an injected dependency and reads the result.
--
--There is no analytics, no crash reporting, no version check, and no third-party
--endpoint anywhere in the codebase.
--
--## Credentials
--
--**None.** The Claude Code implementation reads no token, no credentials file
--and no environment secret. Your Claude login stays with Claude Code, which
--is where Anthropic's terms keep it
--([legal and compliance](https://code.claude.com/docs/en/legal-and-compliance)).
--
--Prompt injection runs offline against already-recorded state, so nothing on the
--hook path can stall your turns.
-+Each provider implementation has its own data and authentication boundaries.
-+The Claude-specific sections below describe its transcript and status-line path.
-+The Codex subsection links its local-state, delegated-request and retention
-+details. Claims about a host or another executable require separate evidence.
-+
-+## Reporting a vulnerability
-+
-+Open a [security advisory](https://github.com/DarkNightForge/Agent_Efficiency/security/advisories/new)
-+rather than a public issue. If advisories are unavailable to you, open an issue
-+saying only that you have a security report and asking for a contact — no
-+details in the issue text.
-+
-+Expect an acknowledgement within a week. This is a small project maintained by
-+volunteers; there is no bounty and no formal SLA, and pretending otherwise would
-+be its own kind of dishonesty.
-+
-+## What Claude Code reads
-+
-+| Path | Why | Mode |
-+|---|---|---|
-+| `~/.claude/projects/**/*.jsonl` | token counts and timestamps per turn | read-only |
-+| status line JSON, on stdin | `rate_limits`: the vendor's own utilization and reset times | read; the input is passed on unchanged to your own status line |
-+| the session transcript's mtime | to date a status line reading | `stat` only, never opened for this |
-+| `~/.claude/usage-budget/` | its own derived state | read/write |
-+| `~/.claude/settings.json` | to wire and verify hooks and the status line | read; written **only** by `install.sh` |
-+
-+Transcripts are parsed for three things and no others: the per-turn `usage`
-+block, the timestamp, and the **names** of `tool_use` blocks (`Bash`, `Edit`, …)
-+so spend can be attributed per tool. Message text is never read, and neither are
-+tool *inputs* — the parser takes `b["name"]` from a `tool_use` block and nothing
-+else. See the transcript loop in
-+[`claude-code/usage_budget.py`](claude-code/usage_budget.py).
-+
-+Tool names are still information about you: they reveal what kinds of operation
-+you run, though not on what. Provider-specific outbound behavior is described below.
-+
-+## What leaves your machine
-+
-+Outbound behavior differs by provider:
-+
-+- **`claude-code/`** makes **no network calls**. The vendor's usage meter
-+  arrives from Claude Code itself, as `rate_limits` in the JSON it pipes to
-+  your status line; see `record_statusline()` in
-+  [`claude-code/usage_budget.py`](claude-code/usage_budget.py).
-+
 +- **`plugins/` (Codex)** stores local measurement metadata and delegates
 +  authenticated `account/rateLimits/read` requests to `codex app-server --stdio`.
-+  Hooks and its MCP worker may refresh automatically. The client request does
-+  not contain conversation/rollout contents; this does not describe all traffic
-+  or credential handling inside Codex. See [the Codex notice](codex/PRIVACY.md).
-+- **`hermes/`** never fetches anything itself; it receives Hermes's own
-+  `fetch_account_usage` as an injected dependency and reads the result.
++  Hooks and the running MCP worker can refresh automatically. The plugin's
++  usage-read payload contains no rollout or conversation contents. Codex
++  handles authentication and the account request. See the
++  [Codex privacy notice](codex/PRIVACY.md) for its local reads and controls.
+@@ -53,2 +57,2 @@
+-There is no analytics, no crash reporting, no version check, and no third-party
+-endpoint anywhere in the codebase.
++These descriptions cover the implementations in this repository. Host
++applications and injected dependencies have their own network behavior.
+@@ -63,2 +67,7 @@
+-Prompt injection runs offline against already-recorded state, so nothing on the
+-hook path can stall your turns.
++Claude Code's prompt hook renders already-recorded state. Codex hooks can
++perform bounded, delegated allowance reads and local measurement updates.
++Review the installed hook definitions and use the host's trust controls.
 +
-+These descriptions concern the provider implementations themselves, not every
-+network operation of their hosts or injected provider dependencies.
-+
-+## Credentials
-+
-+The Claude Code implementation reads no token, no credentials file
-+and no environment secret. Your Claude login stays with Claude Code, which
-+is where Anthropic's terms keep it
-+([legal and compliance](https://code.claude.com/docs/en/legal-and-compliance)).
-+
-+The Claude hook renders already-recorded state. Codex hooks can launch a bounded
-+authenticated usage read; they are not an offline-only path. A timeout bounds
-+the client's wait but does not establish all behavior of its external process.
-+
-+## Codex local state and user control
-+
-+Codex rollout JSONL is parsed locally for per-call counts, timestamps and scoped
-+model/session metadata. Measurement history excludes conversation bodies and
-+tool inputs/output. Automatic correlation uses opaque hashes; those references
-+remain private metadata, not guaranteed anonymous data. Manually supplied task
-+labels may be retained, so use non-sensitive labels.
-+
-+Plugin-managed writes use an allowlist inside a validated dedicated state
-+directory. Original rollouts are not repaired, moved or deleted. These defenses
-+do not describe all writes of the installer, Codex or the operating system.
-+
-+The running MCP worker normally refreshes every 240 seconds and also scans
-+rollouts when telemetry is enabled. `telemetry_enabled: false` disables task
-+measurement and rollout scanning, retains existing records, and leaves
-+allowance refresh and modes enabled. It is not an offline switch. History has
-+a configurable record limit and fixed size ceilings; other state has no
-+promised age-based expiry. The [Codex notice](codex/PRIVACY.md) gives the details.
-+
-+The unresolved Windows permission-prompt investigation remains a release gate.
-+Functional test passes do not establish its cause or grant credential/passkey
-+access. Use supported hook trust and host permission controls.
++For Codex, `telemetry_enabled: false` disables task measurement and rollout
++scanning. Allowance refresh continues. The privacy notice documents dedicated
++state validation, fixed storage ceilings and retained pseudonymous metadata.
+@@ -93 +102 @@
+-## Hooks
++## Claude Code installer and hooks

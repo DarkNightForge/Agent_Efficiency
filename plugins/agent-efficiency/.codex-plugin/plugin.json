@@ -1,6 +1,6 @@
 {
   "name": "agent-efficiency",
-  "version": "0.5.0+codex.20261103233201",
+  "version": "1.0.0",
   "description": "Choose task modes and inspect local measurements and Codex allowance estimates.",
   "author": {
     "name": "Agent Efficiency contributors"
@@ -18,7 +18,7 @@
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
-    "displayName": "Agent Efficiency v0.5",
+    "displayName": "Agent Efficiency v1.0",
     "shortDescription": "Task modes, local measurements, and capacity estimates",
     "longDescription": "Choose Throughput, Balanced, or Stretch; inspect local task measurements; estimate capacity from Codex allowance snapshots; and review storage safeguards. Allowance refresh delegates authenticated requests to Codex.",
     "developerName": "Agent Efficiency contributors",

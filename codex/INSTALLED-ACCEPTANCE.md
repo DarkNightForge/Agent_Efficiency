@@ -1,22 +1,17 @@
 # Exact installed-candidate acceptance
 
-Owner: @Eclipse1231317. Updated November 3, 2026.
-The current candidate passed the observed picker and measurement checks. Independent
-inspection of the live Desktop MCP process remains open. See
-[PUBLIC-REVIEW.md](PUBLIC-REVIEW.md) for evidence and review items.
+Owner: @Eclipse1231317. Updated November 9, 2026.
 
-Candidate: `0.5.0+codex.20261103233201`, on `robbie/public-v1-hardening`.
-The previous candidate passed picker visibility and child registration in
-Desktop. Applying the selected mode and completing the child failed. This build
-adds a turn-specific picker confirmation and handles the parent-scoped child
-Stop event. See [INTEGRATION-FOLLOWUP.md](INTEGRATION-FOLLOWUP.md).
-[ACCEPTANCE-CANDIDATE.json](ACCEPTANCE-CANDIDATE.json) fingerprints all 17
-tracked plugin payload files, including configuration, launchers, UI and skill.
-A base `v0.5` label or matching directory name alone is insufficient.
+Candidate: `1.0.0`, on `robbie/codex-v1-release`, based on merged main at
+`7fdf061`. The [inventory](ACCEPTANCE-CANDIDATE.json) describes the release
+branch's exact Windows payload bytes. The new version changes package and UI
+identity. Its validation and installed smoke test await the user's go-ahead.
 
-These are installed-host checks, not another unit-test run. Do not replace a
-missing installed tool with a source import, synthetic protocol response, fake
-hook event, fabricated usage reading or manually completed task record.
+The earlier developer candidate passed the observed picker, hook, token and
+worker checks. Those results are recorded in the
+[release record](RELEASE-1.0.0.md). Keep them separate from results for `1.0.0`.
+The host's live process provenance and historical Windows permission prompt
+remain documented review items.
 
 ## Installation and restart
 
@@ -41,7 +36,7 @@ hook event, fabricated usage reading or manually completed task record.
    conflict; do not remove unrelated marketplaces or hand-edit global config.
 3. Reopen the desktop app, choose that local source in the Plugins Directory,
    and install/update Agent Efficiency. Confirm full candidate version
-   `0.5.0+codex.20261103233201`. The full version may require installed metadata
+   `1.0.0`. The full version may require installed metadata
    inspection rather than the display label. If unavailable or rejected, record
    a setup blocker; do not claim installation succeeded.
 4. Review and trust this plugin's actual hook commands in the supported hook
@@ -140,7 +135,7 @@ anything, publish, bypass permissions, inspect credentials/passkeys, or delete
 plugin state. Stop and report any unexpected sensitive permission prompt.
 
 1. Verify the clean checkout/HEAD and candidate
-0.5.0+codex.20261103233201 using codex/ACCEPTANCE-CANDIDATE.json. Locate the
+1.0.0 using codex/ACCEPTANCE-CANDIDATE.json. Locate the
 loaded installed root from host metadata/skill location and compare all 17
 payload files, source and installed. Tie loaded skill, hooks and MCP server to
 that root. Do not substitute source CLI calls for installed MCP availability.

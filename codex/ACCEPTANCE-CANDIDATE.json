@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
-  "version": "0.5.0+codex.20261103233201",
-  "runtime_baseline_commit": "844b49af2568d59bee46744e6882e27454d9a0de",
-  "runtime_change": "Turn-bound picker handoff confirmation and verified parent-scoped child Stop completion",
+  "version": "1.0.0",
+  "runtime_baseline_commit": "7fdf0611cb684d5eb2bedbbfa608e9a4eab4d989",
+  "runtime_change": "Codex v1.0.0 package, core and widget version surfaces; release validation pending",
   "fingerprint_scope": "Exact bytes of the local Windows source payload; compare all files with the installed payload",
   "files": [
     {
       "path": ".codex-plugin/plugin.json",
-      "sha256": "64a7ca801ebf699b91d49e5684f879542f4334e7c6167e1c91977e0c2c679e18",
-      "bytes": 1476
+      "sha256": "9de874c9d727ba3743b2ce34212801f35e0ae5103627ec7f264d738c1da87e1b",
+      "bytes": 1455
     },
     {
       "path": ".mcp.json",
@@ -17,7 +17,7 @@
     },
     {
       "path": "assets/control_center.html",
-      "sha256": "44493973c05603ea944aaa768617a2af48ee81e3d972ef49b1cd7092154c30e4",
+      "sha256": "44ed58da1168c8ec9c0abddfdf9c2f55e38f1179e81843af1601d9a2797b37c5",
       "bytes": 19810
     },
     {
@@ -37,7 +37,7 @@
     },
     {
       "path": "scripts/agent_efficiency.py",
-      "sha256": "226515ae9f26b2c2eca66303b9a92b845d1c21fd883200d97e9cc20a23299261",
+      "sha256": "924b0c8bdd5202e2bbacb2efbfb2ede4feb664f4320bd6788e255ba567e15958",
       "bytes": 188269
     },
     {
@@ -90,5 +90,6 @@
       "sha256": "c9e9ec15dc6a18d89b4842e5d19fc4dc2e0d2bd27be2cd95aa2656ad927b4703",
       "bytes": 7931
     }
-  ]
+  ],
+  "validation_status": "pending-user-approval"
 }

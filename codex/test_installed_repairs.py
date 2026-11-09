@@ -27,7 +27,7 @@ class InstalledRepairTests(unittest.TestCase):
         patch.start()
         self.addCleanup(patch.stop)
 
-    def package(self, version="0.5.0+codex.synthetic"):
+    def package(self, version="1.0.0+codex.synthetic"):
         root = self.base / "plugins" / "cache" / "synthetic-market" / "agent-efficiency" / version
         (root / ".codex-plugin").mkdir(parents=True)
         (root / "scripts").mkdir()
