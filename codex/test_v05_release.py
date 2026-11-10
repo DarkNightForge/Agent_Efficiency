@@ -41,20 +41,20 @@ class ReleaseHardeningTests(unittest.TestCase):
         os.environ.pop("AGENT_EFFICIENCY_DISABLE_LIVE_REFRESH", None)
         self.temp.cleanup()
 
-    def test_v050_release_surfaces_are_consistent(self) -> None:
+    def test_v100_release_surfaces_are_consistent(self) -> None:
         manifest = json.loads(
             (PLUGIN / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8")
         )
         html = (PLUGIN / "assets" / "control_center.html").read_text(encoding="utf-8")
         readme = (ROOT / "codex" / "README.md").read_text(encoding="utf-8")
 
-        self.assertEqual(ae.VERSION, "0.5.0")
+        self.assertEqual(ae.VERSION, "1.0.0")
         self.assertEqual(manifest["version"].split("+", 1)[0], ae.VERSION)
-        self.assertIn("v0.5", manifest["interface"]["displayName"])
-        self.assertTrue(mcp_server.UI_URI.startswith("ui://widget/agent-efficiency-control-center-v0.5-"))
+        self.assertIn("v1.0", manifest["interface"]["displayName"])
+        self.assertTrue(mcp_server.UI_URI.startswith("ui://widget/agent-efficiency-control-center-v1.0-"))
         self.assertTrue(mcp_server.UI_URI.endswith(".html"))
-        self.assertIn('id="version">v0.5.0</span>', html)
-        self.assertIn("Status: v0.5.0", readme)
+        self.assertIn('id="version">v1.0.0</span>', html)
+        self.assertIn("Status: v1.0.0", readme)
 
     def test_dependency_free_install_verification_includes_manifest_schema(self) -> None:
         result = ae.verify_install(PLUGIN)

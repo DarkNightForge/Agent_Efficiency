@@ -1,48 +1,47 @@
 # Codex implementation
 
-> **Status: v0.5.0 Codex candidate (unreleased), being prepared for v1.0.0.** The installable plugin lives in
+> **Status: v1.0.0 Codex package.** The installable plugin lives in
 > [`../plugins/agent-efficiency/`](../plugins/agent-efficiency/).
 
 Agent Efficiency gives Codex three execution modes, a control-center picker,
 automatic per-turn measurement, and a live allowance-aware planning policy. It
 keeps the behavior and decision rules aligned with the Claude Code version while
-using telemetry Codex actually exposes. v0.5.0 adds an enforced state sandbox,
+using telemetry Codex actually exposes. v1.0.0 includes an enforced state sandbox,
 bounded local inputs and processes, and a read-only privacy status without adding
 cloud telemetry or third-party runtime dependencies.
 
-An earlier implementation was exercised against Codex CLI `0.147.0`: a local App Server
-client returned a live rate-limit snapshot, the snapshot normalized into active
-windows, and the capacity estimator consumed it without a manual usage reading.
-Current source validation and remaining host acceptance are tracked in
-[PUBLIC-MIGRATION.md](PUBLIC-MIGRATION.md). This candidate is not a published release.
-
-The latest focused corrections are tracked in
-[INTEGRATION-FOLLOWUP.md](INTEGRATION-FOLLOWUP.md): schema-valid widget negotiation,
-content-specific resource identity and header-verified session/thread linkage.
-Their Desktop picker/child acceptance remains separate from source tests.
+The v1.0.0 release branch is based on merged PR #8. The earlier developer build
+passed the recorded Desktop checks. The new package
+passed all local suites, installed-package checks and the functional Desktop
+smoke test. Save/Recalculate feedback was confirmed by the tester; one-time
+Throughput, the subsequent Balanced default and automatic completion were
+verified in installed records. See
+[the release record](RELEASE-1.0.0.md) for readiness and known limits.
 
 ## Install
 
 You need Git, Python 3, and a Codex build with plugin support. The plugin has no
 third-party Python dependencies.
 
-For the current unreleased candidate, follow
-[the exact installed-candidate procedure](INSTALLED-ACCEPTANCE.md) instead of
-installing public main. This hook-containing build is manually installed in
+For repeatable installation checks, follow
+[the exact installed-package procedure](INSTALLED-ACCEPTANCE.md) from the reviewed release commit. This lifecycle-hook build is manually installed in
 Desktop; current [OpenAI packaging guidance](https://developers.openai.com/plugins/build/plugins#bundled-mcp-servers-and-lifecycle-hooks)
 excludes lifecycle-hook plugins from the universal public directory.
 
 ```bash
-git clone git@github.com:DarkNightForge/Agent_Efficiency.git
+git clone --branch v1.0.0 https://github.com/DarkNightForge/Agent_Efficiency.git
 cd Agent_Efficiency
 codex plugin marketplace add "$PWD"
 codex plugin add agent-efficiency@agent-efficiency
 ```
 
-Start a new Codex task. Open `/hooks`, inspect the Agent Efficiency commands, and
-trust them. Codex intentionally does not execute untrusted plugin hooks; do not
+Fully restart Desktop. Review Agent Efficiency's commands under the plugin's
+Hooks panel or Settings > Hooks and trust the hooks you want to run. The CLI
+also offers `/hooks`. Start a fresh Codex chat after that review. Codex intentionally does not execute untrusted plugin hooks; do not
 use a hook-trust bypass flag. Start another new task after installing an updated
 build because Codex caches plugin versions and loaded skills per task.
+
+For upgrades and rollback, see the [release installation guide](INSTALL-AND-ROLLBACK.md).
 
 ## Use
 
@@ -167,8 +166,8 @@ Local state honors `AGENT_EFFICIENCY_DATA`, then `PLUGIN_DATA`. A verified legac
 Codex installation falls back to the matching host `plugins/data/` directory;
 standalone use defaults to `~/.agent-efficiency/`. Existing state locations are
 not automatically moved, merged or deleted. An override must be an absolute, dedicated
-directory. On first use, Agent Efficiency claims an empty directory—or a
-directory containing only recognized v0.4 state files—with an ownership marker.
+directory. On first use, Agent Efficiency claims an empty directoryâ€”or a
+directory containing only recognized v0.4 state filesâ€”with an ownership marker.
 It refuses filesystem roots, the home directory itself, the current working
 directory, the installed plugin directory, unclaimed directories containing
 unrelated files, and state roots or files redirected through symbolic links,

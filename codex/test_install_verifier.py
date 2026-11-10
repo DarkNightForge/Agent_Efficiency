@@ -31,7 +31,7 @@ class InstallVerifierTests(unittest.TestCase):
         environment.start()
         self.addCleanup(environment.stop)
 
-    def _package(self, relative: str, version: str = "0.5.0+codex.test-1") -> Path:
+    def _package(self, relative: str, version: str = "1.0.0+codex.test-1") -> Path:
         root = self.base / "packages" / relative
         shutil.copytree(PLUGIN, root, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
         manifest_path = root / ".codex-plugin" / "plugin.json"
@@ -65,7 +65,7 @@ class InstallVerifierTests(unittest.TestCase):
     def test_exact_installed_version_directory_passes(self) -> None:
         # The parent location can be a custom cache root; only the identity
         # components, not the user's home or marketplace directory, matter.
-        for version in ("0.5.0", "0.5.0+codex.test-1"):
+        for version in ("1.0.0", "1.0.0+codex.test-1"):
             with self.subTest(version=version):
                 root = self._package(f"custom-cache/agent-efficiency/{version}", version)
                 result = self._verify(root)
@@ -77,13 +77,13 @@ class InstallVerifierTests(unittest.TestCase):
         self._assert_layout_rejected(self._package("source/wrong-plugin"))
 
     def test_wrong_installed_plugin_parent_is_rejected(self) -> None:
-        self._assert_layout_rejected(self._package("wrong-plugin/0.5.0+codex.test-1"))
+        self._assert_layout_rejected(self._package("wrong-plugin/1.0.0+codex.test-1"))
 
     def test_wrong_installed_cachebuster_is_rejected(self) -> None:
-        self._assert_layout_rejected(self._package("agent-efficiency/0.5.0+codex.test-2"))
+        self._assert_layout_rejected(self._package("agent-efficiency/1.0.0+codex.test-2"))
 
     def test_base_version_alone_cannot_match_a_cachebusted_manifest(self) -> None:
-        self._assert_layout_rejected(self._package("agent-efficiency/0.5.0"))
+        self._assert_layout_rejected(self._package("agent-efficiency/1.0.0"))
 
     def test_arbitrary_child_of_plugin_directory_is_rejected(self) -> None:
         self._assert_layout_rejected(self._package("agent-efficiency/arbitrary"))
@@ -97,7 +97,7 @@ class InstallVerifierTests(unittest.TestCase):
         self.assertIn("core and manifest base versions differ", result["errors"])
 
     def test_malformed_identity_fields_are_rejected_without_throwing(self) -> None:
-        root = self._package("agent-efficiency/0.5.0+codex.test-1")
+        root = self._package("agent-efficiency/1.0.0+codex.test-1")
         manifest_path = root / ".codex-plugin" / "plugin.json"
         valid = json.loads(manifest_path.read_text(encoding="utf-8"))
         for field in ("name", "version"):
@@ -118,7 +118,7 @@ class InstallVerifierTests(unittest.TestCase):
                 self.assertEqual(self._verify(root)["status"], "fail")
 
     def test_installed_layout_still_requires_companion_files(self) -> None:
-        root = self._package("agent-efficiency/0.5.0+codex.test-1")
+        root = self._package("agent-efficiency/1.0.0+codex.test-1")
         (root / ".mcp.json").unlink()  # Only this test-created package copy.
         result = self._verify(root)
         self.assertEqual(result["status"], "fail")

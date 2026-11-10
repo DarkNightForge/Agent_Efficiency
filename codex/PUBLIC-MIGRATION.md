@@ -1,5 +1,8 @@
 # Codex public-repository migration
 
+This is the historical port record. PR #8 merged at `7fdf061`. Current release
+preparation is tracked in [RELEASE-1.0.0.md](RELEASE-1.0.0.md).
+
 Owner: @Eclipse1231317. Prepared October 26, 2026.
 
 The working branch starts from public main at

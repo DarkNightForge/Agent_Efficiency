@@ -1,5 +1,8 @@
 # Picker and child-linkage follow-up
 
+Historical repair evidence. Current release preparation is in
+[RELEASE-1.0.0.md](RELEASE-1.0.0.md).
+
 ## November 3, 2026 candidate
 
 The prior installed Desktop retest confirmed a usable picker, save and
@@ -99,7 +102,7 @@ subsequent full Codex suite passed. Final whitespace/local-link checks and all
 
 ## Installed verification and retest
 
-The [current inventory](ACCEPTANCE-CANDIDATE.json) identifies all 17 payload files.
+The [historical developer inventory](https://github.com/DarkNightForge/Agent_Efficiency/blob/7fdf0611cb684d5eb2bedbbfa608e9a4eab4d989/codex/ACCEPTANCE-CANDIDATE.json) identifies all 17 payload files.
 The package was installed through the supported local marketplace CLI and all
 17 installed hashes match. Its actual installed launcher also passed an isolated
 MCP check for core/server fingerprints, 13-tool contract, content-qualified URI

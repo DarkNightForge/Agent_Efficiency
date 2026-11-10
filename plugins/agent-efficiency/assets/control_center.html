@@ -46,7 +46,7 @@
   <main class="shell">
     <header>
       <div class="eyebrow">Mode control center</div>
-      <h1>Agent Efficiency <span id="version">v0.5.0</span></h1>
+      <h1>Agent Efficiency <span id="version">v1.0.0</span></h1>
       <p class="task" id="task">Current task</p>
     </header>
     <section class="toolbar" aria-label="Calculation settings">
@@ -157,7 +157,7 @@
         replacement.push(card);
       }
       $("cards").replaceChildren(...replacement);
-      $("version").textContent=`v${next.version||"0.5.0"}`; $("task").textContent=next.task_summary||"Current task"; $("scope").value=next.estimate_scope||"selected"; $("disclaimer").textContent=next.disclaimer||"Capacity is an estimate, not a guaranteed message count.";
+      $("version").textContent=`v${next.version||"1.0.0"}`; $("task").textContent=next.task_summary||"Current task"; $("scope").value=next.estimate_scope||"selected"; $("disclaimer").textContent=next.disclaimer||"Capacity is an estimate, not a guaranteed message count.";
       const poll=next.telemetry_status?.rate_limit_poll||{}; const pollError=poll.last_error?.message; $("telemetry-status").textContent=`Rate-limit telemetry: ${poll.status||"not-started"}${pollError?` — ${pollError}`:""}`;
       const security=next.security||{}; const storage=security.storage||{}; const retention=security.retention||{}; $("security-status").textContent=security.safety_checks_passed?"Local state checks passed":`Attention: ${(security.issues||[]).length} check(s)`; $("storage-status").textContent=`${formatNumber(storage.used_bytes||0)} of ${formatNumber(storage.limit_bytes||0)} bytes`; $("retention-status").textContent=`${formatNumber(retention.history_records||0)} of ${formatNumber(retention.history_record_limit||0)} records`;
       center=next; selected=renderMode; setBusy(busy);
@@ -231,7 +231,7 @@
     if(window.openai?.toolOutput){try{render(window.openai.toolOutput);}catch(error){showFailure("Loading the control center",error);}}
     {
       initializeId=nextId;
-      request("ui/initialize",{protocolVersion:"2026-01-26",appInfo:{name:"agent-efficiency-control-center",version:"0.5.0"},appCapabilities:{availableDisplayModes:["inline"]}})
+      request("ui/initialize",{protocolVersion:"2026-01-26",appInfo:{name:"agent-efficiency-control-center",version:"1.0.0"},appCapabilities:{availableDisplayModes:["inline"]}})
         .catch(error=>{if(!closed&&!nativeBridge)showFailure("Connecting the control center",error);});
       if(typeof ResizeObserver==="function"&&document.body){sizeObserver=new ResizeObserver(notifySize);sizeObserver.observe(document.body);}
     }

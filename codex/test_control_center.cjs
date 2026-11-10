@@ -22,7 +22,7 @@ function validUiInitialize(params) {
 }
 function center(mode = "balanced") {
   return {
-    version: "0.5.0", selected_mode: mode, estimate_scope: "selected", modes: [],
+    version: "1.0.0", selected_mode: mode, estimate_scope: "selected", modes: [],
     task_summary: "Synthetic task",
     descriptions: ["throughput", "balanced", "stretch"].map(mode => ({ mode, label: mode[0].toUpperCase() + mode.slice(1), objective: "Objective", behavior: "Behavior", tradeoff: "Tradeoff" })),
   };

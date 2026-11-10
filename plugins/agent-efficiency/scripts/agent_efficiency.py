@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Agent Efficiency v0.5 core, CLI, estimator, and telemetry store.
+"""Agent Efficiency v1.0 core, CLI, estimator, and telemetry store.
 
 The module is dependency-free so an installed Codex plugin can run it with the
 system Python. It intentionally stores numeric metadata, never prompt or tool
@@ -40,7 +40,7 @@ try:  # Windows file locking.
 except ImportError:  # pragma: no cover - exercised on POSIX.
     msvcrt = None  # type: ignore[assignment]
 
-VERSION = "0.5.0"
+VERSION = "1.0.0"
 RUNTIME_CORE_SHA256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
 POLL_CALLERS = frozenset({"unspecified", "worker", "tool", "cli", "control-center", "session-start", "prompt", "completion"})
 HOOK_EVENTS = frozenset({"SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse", "SubagentStart", "SubagentStop", "PreCompact", "PostCompact", "Stop", "SessionEnd"})

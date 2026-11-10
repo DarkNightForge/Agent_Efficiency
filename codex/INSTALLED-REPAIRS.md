@@ -1,5 +1,8 @@
 # Installed-host repair cycle
 
+Historical repair evidence. Current release preparation is in
+[RELEASE-1.0.0.md](RELEASE-1.0.0.md).
+
 Owner: @Eclipse1231317. Prepared October 30, 2026.
 Candidate: `0.5.0+codex.20261030235900`. Source baseline: `874043d`.
 
@@ -73,7 +76,7 @@ remain unchanged; issue 6 coordination still applies.
 ## Installed acceptance
 
 Follow [INSTALLED-ACCEPTANCE.md](INSTALLED-ACCEPTANCE.md) with the new
-[payload inventory](ACCEPTANCE-CANDIDATE.json). A base version label or old cache
+[historical payload inventory](https://github.com/DarkNightForge/Agent_Efficiency/blob/7fdf0611cb684d5eb2bedbbfa608e9a4eab4d989/codex/ACCEPTANCE-CANDIDATE.json). A base version label or old cache
 entry is insufficient. Use live module fingerprints and caller diagnostics as
 additional scoped evidence, while preserving any independent host-metadata gap.
 
