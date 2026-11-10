@@ -1,6 +1,6 @@
 # Codex implementation
 
-> **Status: v1.0.0 Codex release candidate (unreleased).** The installable plugin lives in
+> **Status: v1.0.0 Codex package.** The installable plugin lives in
 > [`../plugins/agent-efficiency/`](../plugins/agent-efficiency/).
 
 Agent Efficiency gives Codex three execution modes, a control-center picker,
@@ -12,8 +12,10 @@ cloud telemetry or third-party runtime dependencies.
 
 The v1.0.0 release branch is based on merged PR #8. The earlier developer build
 passed the recorded Desktop checks. The new package
-passed all local suites and installed-package checks. The final Desktop
-activation and picker smoke test remain pending. See
+passed all local suites, installed-package checks and the functional Desktop
+smoke test. Save/Recalculate feedback was confirmed by the tester; one-time
+Throughput, the subsequent Balanced default and automatic completion were
+verified in installed records. See
 [the release record](RELEASE-1.0.0.md) for readiness and known limits.
 
 ## Install
@@ -21,13 +23,13 @@ activation and picker smoke test remain pending. See
 You need Git, Python 3, and a Codex build with plugin support. The plugin has no
 third-party Python dependencies.
 
-For the current unreleased candidate, follow
-[the exact installed-candidate procedure](INSTALLED-ACCEPTANCE.md) from the release branch. This lifecycle-hook build is manually installed in
+For repeatable installation checks, follow
+[the exact installed-package procedure](INSTALLED-ACCEPTANCE.md) from the reviewed release commit. This lifecycle-hook build is manually installed in
 Desktop; current [OpenAI packaging guidance](https://developers.openai.com/plugins/build/plugins#bundled-mcp-servers-and-lifecycle-hooks)
 excludes lifecycle-hook plugins from the universal public directory.
 
 ```bash
-git clone https://github.com/DarkNightForge/Agent_Efficiency.git
+git clone --branch v1.0.0 https://github.com/DarkNightForge/Agent_Efficiency.git
 cd Agent_Efficiency
 codex plugin marketplace add "$PWD"
 codex plugin add agent-efficiency@agent-efficiency

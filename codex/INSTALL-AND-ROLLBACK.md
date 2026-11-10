@@ -1,7 +1,7 @@
 # Install and roll back the Codex plugin
 
-Target package version: `1.0.0`. Local suites and installed-package checks passed;
-final Desktop smoke validation is pending. See [validation](VALIDATION-1.0.0.md).
+Target package version: `1.0.0`. Local suites, installed-package checks and the
+functional Desktop smoke test passed. See [validation and evidence limits](VALIDATION-1.0.0.md).
 
 ## Install or upgrade
 

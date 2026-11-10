@@ -1,4 +1,4 @@
-# Codex v1.0.0 release preparation
+# Codex v1.0.0 release record
 
 Owner: @Eclipse1231317. Prepared November 9, 2026.
 
@@ -8,15 +8,14 @@ Owner: @Eclipse1231317. Prepared November 9, 2026.
 | Branch | `robbie/codex-v1-release` |
 | Upstream base | `7fdf0611cb684d5eb2bedbbfa608e9a4eab4d989`, merged PR #8 |
 | Package and core version | `1.0.0` |
-| Proposed GitHub tag | `v1.0.0`; publication authorized after validation |
+| GitHub release | [`v1.0.0`](https://github.com/DarkNightForge/Agent_Efficiency/releases/tag/v1.0.0) |
 | Package inventory | [ACCEPTANCE-CANDIDATE.json](ACCEPTANCE-CANDIDATE.json) |
 | Local validation | Three provider suites, 65 widget checks, 12 Codex policy fixtures and nine verifier checks passed. Seven platform skips. |
 | Installed package | `1.0.0`: 17 payload hashes, isolated configured launcher, 13 tools, annotations, UI resource and nine installed verifier checks passed. |
-| Final Desktop smoke test | Pending restart, hook review and real picker/completion checks. |
-| Publishing | Authorized after validation; no release or tag created yet. |
+| Final Desktop smoke test | Functional checks passed; tester confirmed Balanced save and Estimates updated feedback. Exact Throughput handoff, automatic completion, scoped tokens and subsequent Balanced passed. |
 | Shared README/security wording | Proposed for Eashan in issue #6. The shared files remain at the upstream base. |
 
-## Release notes draft
+## Release overview
 
 Agent Efficiency for Codex provides an interactive picker for Throughput,
 Balanced and Stretch. A picker selection applies to one follow-up task.
@@ -46,8 +45,8 @@ marketplace. Follow the supported host controls when reviewing hooks.
 
 The release preparation changes the core, manifest and widget version labels to
 `1.0.0`, updates version-dependent fixtures, and regenerates the payload inventory.
-The widget's content-qualified resource URI will change with its packaged HTML.
-The new installation must be tied to this release branch when validation begins.
+The widget's resource URI includes a hash of its packaged HTML. The smoke
+checks below tied the installed package to the reviewed source inventory.
 
 The developer candidate `0.5.0+codex.20261103233201` passed the recorded Desktop
 picker, one-time Throughput, default-save, Recalculate-feedback, parent/child
@@ -66,21 +65,27 @@ allowance requests. The user chose to keep the patch proposed for Eashan.
 [codex proposal](SHARED-SECURITY.patch) ·
 [Issue #6](https://github.com/DarkNightForge/Agent_Efficiency/issues/6)
 
-CLI configuration reported the expected MCP command and working directory.
-The live module and hook fingerprints matched the developer payload.
-Independent inspection of the running Desktop process was unavailable.
-Keep that scope distinction in the final release evidence and obtain a
-disposition before publishing.
+For the release package, CLI configuration reported the expected installed MCP
+command and working directory, and live module/server/hook fingerprints matched
+the 17-file inventory. Development-chat Git verification closed the test chat's
+access blocker. Independent process inspection then found installed `1.0.0` MCP
+servers with the Desktop → Codex → Git → shell → Python ancestor chain. It did
+not bind a process ID to the exact test chat connection. The release evidence
+records this limit; it does not claim per-connection process attestation.
 
-The historical Windows permission prompt has an unresolved cause. A support
-report is optional and user-initiated. Final validation should preserve any
-unexpected prompt as evidence and stop the affected action. The release
-decision must record the owner's disposition of this historical issue.
+The historical Windows permission prompt has an unresolved cause. The user
+previously chose to proceed after it was not reproduced and asked to keep a
+support report as an optional reminder in future plans. No unexpected sensitive
+prompt was encountered in this release smoke run. This does not establish the
+historical prompt's cause. Preserve and report any recurrence through the
+user-initiated support path.
 
 Live compaction, SessionEnd and truncation were outside the developer Desktop
-run. Their synthetic coverage remains separate. Recalculate showed successful
-rendering, while the earlier explicit refresh and idle worker provided their
-own attributable capture evidence.
+run. Their synthetic coverage remains separate. Recalculate feedback was
+confirmed by the tester. A fresh allowance capture attributable specifically to
+that click was not observed. Exact independent nested tool-call counting also
+remains unobserved; counter snapshots were consistent. Earlier explicit refresh
+and idle-worker checks retain their separate baseline evidence.
 
 ## Authorized release execution
 
@@ -89,11 +94,10 @@ The user authorized steps 4 and 5 on November 9, 2026. The exact runtime commit
 package checks. See [VALIDATION-1.0.0.md](VALIDATION-1.0.0.md). Later readiness-only
 documentation updates do not change its 17-file payload.
 
-Complete the [release smoke test](RELEASE-SMOKE-TEST.md) and the affected
-installed checks in [INSTALLED-ACCEPTANCE.md](INSTALLED-ACCEPTANCE.md).
-Record failures and missing evidence with their actual scope.
+The [release smoke test](RELEASE-SMOKE-TEST.md) completed against source commit
+`b43806d9abd1305d90c105c2518ac9199ec96b43`. Its functional checks passed, with
+the evidence limits above preserved. Private raw reports remain local; public
+results contain no account usage or task/session identifiers.
 
-After validation and release decisions pass, prepare the release PR against
-upstream main, re-fetch and rebase before pushing, verify the final commit's CI,
-and use the authorized release publication step. Re-check the merged
-payload identity if merge changes its contents.
+The release workflow verifies CI on [PR #9](https://github.com/DarkNightForge/Agent_Efficiency/pull/9)
+and checks the merged payload against the validated package before tagging.

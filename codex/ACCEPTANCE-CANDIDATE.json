@@ -91,5 +91,5 @@
       "bytes": 7931
     }
   ],
-  "validation_status": "local-suites-and-installed-package-pass; desktop-smoke-pending"
+  "validation_status": "functional-desktop-smoke-completed; documented-evidence-limits"
 }

@@ -1,44 +1,46 @@
-# Codex release review preparation
+# Codex v1.0.0 release review
 
 Owner: @Eclipse1231317. Updated November 9, 2026.
 
-PR #8 merged into upstream main at `7fdf061`. The follow-up branch
-`robbie/codex-v1-release` stages Codex version `1.0.0` and its release
-documentation. The user authorized final validation and publication after it
-passes. All local suites and installed-package checks passed. The final Desktop
-smoke test and the release PR's CI remain pending.
-[PR #8](https://github.com/DarkNightForge/Agent_Efficiency/pull/8)
+[PR #8](https://github.com/DarkNightForge/Agent_Efficiency/pull/8) merged at
+`7fdf061`. [PR #9](https://github.com/DarkNightForge/Agent_Efficiency/pull/9)
+prepares Codex `1.0.0`. Runtime changes after PR #8 are version surfaces and
+the resulting content-qualified UI identity. The final updates record validation;
+they do not change the 17-file plugin payload.
 
-## Proposed release PR title
+## Validation
 
-Prepare Codex v1.0.0 package identity and release documentation
+All three local provider suites passed: 659 passes and seven platform skips
+out of 666 tests. The 65 widget checks, 12 Codex policy fixtures and nine verifier
+checks passed. Installed `1.0.0` matched all source/inventory payload files and
+passed its isolated configured-launcher, tool/annotation, UI-resource and verifier
+checks.
 
-## Proposed release PR body
+The functional Desktop smoke passed: live fingerprints, tester-confirmed save
+and Recalculate feedback, exact Throughput follow-up, one-time consumption,
+automatic completion, scoped per-call tokens and subsequent Balanced default.
+Development-chat checks closed the test chat's Git access blocker and observed
+installed MCP process ancestry. Exact chat-to-PID binding, nested independent
+tool-call totals and a new capture attributable to Recalculate remain unobserved.
 
-This prepares the merged Codex implementation for a `1.0.0` release. The core,
-manifest and widget version labels agree, version-dependent fixtures target the
-new identity, and the payload inventory describes the release package. The
-install guide includes hook review, upgrades and rollback. The final smoke test
-ties an installed package to its reviewed commit.
+[Full validation and evidence limits](VALIDATION-1.0.0.md) ·
+[Release record](RELEASE-1.0.0.md) ·
+[Install and rollback](INSTALL-AND-ROLLBACK.md)
 
-The exact new runtime candidate passed all three local provider suites:
-659 passed and seven platform skips out of 666 tests. All 65 widget checks,
-12 Codex policy fixtures and nine verifier checks passed. Installed version
-1.0.0 matched all 17 source/inventory files; its configured launcher passed an
-isolated 13-tool, annotations, UI-resource and nine-check verifier probe.
-The real Desktop activation, picker and automatic completion check remains pending.
-[Validation](VALIDATION-1.0.0.md)
-[Release record and evidence limits](RELEASE-1.0.0.md)
+## Publication
 
-The shared README and security wording correction remains proposed for Eashan
-in issue #6, following the user's ownership choice. Independent live Desktop
-launcher inspection and the historical Windows permission prompt remain release
-decisions. A support report is optional.
-[Issue #6](https://github.com/DarkNightForge/Agent_Efficiency/issues/6)
+The user authorized merging and publication after validation. Eight Codex CI
+jobs passed at `b43806d`. Verify CI again on the final documentation head, use a
+linear merge, verify the merged payload and publish tag `v1.0.0` for that commit.
+The Claude/Hermes remote workflows filter by provider paths; distinguish absent
+remote jobs from the successful local three-suite run.
 
-## Before publication
+The root README/SECURITY correction remains proposed for Eashan in
+[issue #6](https://github.com/DarkNightForge/Agent_Efficiency/issues/6), following
+the user's explicit choice. Those shared files and provider-owned implementations
+are unchanged. Use the [Codex privacy notice](PRIVACY.md) for Codex-specific
+local data, delegated authenticated allowance reads and controls.
 
-Complete the recorded release decisions and final validation. Inspect actual
-checks for the proposed merge commit. The Claude and Hermes remote workflows
-filter by provider paths, so report any absent checks separately from the local
-three-suite results.
+The historical Windows permission-prompt cause remains unresolved. The user
+previously chose to proceed after non-reproduction and keep support reporting
+optional. No recurrence was observed in this release smoke.
