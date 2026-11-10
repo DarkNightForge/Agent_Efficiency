@@ -5,7 +5,9 @@ Owner: @Eclipse1231317. Updated November 9, 2026.
 Candidate: `1.0.0`, on `robbie/codex-v1-release`, based on merged main at
 `7fdf061`. The [inventory](ACCEPTANCE-CANDIDATE.json) describes the release
 branch's exact Windows payload bytes. The new version changes package and UI
-identity. Its validation and installed smoke test await the user's go-ahead.
+identity. Local suites and installed-package byte parity, launcher, tool/resource
+contract and verifier checks passed. Desktop activation and real picker actions
+remain pending. See [the release validation record](VALIDATION-1.0.0.md).
 
 The earlier developer candidate passed the observed picker, hook, token and
 worker checks. Those results are recorded in the

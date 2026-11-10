@@ -2,7 +2,7 @@
   "schema_version": 1,
   "version": "1.0.0",
   "runtime_baseline_commit": "7fdf0611cb684d5eb2bedbbfa608e9a4eab4d989",
-  "runtime_change": "Codex v1.0.0 package, core and widget version surfaces; release validation pending",
+  "runtime_change": "Codex v1.0.0 package, core and widget version surfaces; local suites and installed package validated",
   "fingerprint_scope": "Exact bytes of the local Windows source payload; compare all files with the installed payload",
   "files": [
     {
@@ -91,5 +91,5 @@
       "bytes": 7931
     }
   ],
-  "validation_status": "pending-user-approval"
+  "validation_status": "local-suites-and-installed-package-pass; desktop-smoke-pending"
 }

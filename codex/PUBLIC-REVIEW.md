@@ -4,8 +4,9 @@ Owner: @Eclipse1231317. Updated November 9, 2026.
 
 PR #8 merged into upstream main at `7fdf061`. The follow-up branch
 `robbie/codex-v1-release` stages Codex version `1.0.0` and its release
-documentation. The all-provider validation run and final installation test await
-the user's go-ahead, followed by a separate go-ahead for publication.
+documentation. The user authorized final validation and publication after it
+passes. All local suites and installed-package checks passed. The final Desktop
+smoke test and the release PR's CI remain pending.
 [PR #8](https://github.com/DarkNightForge/Agent_Efficiency/pull/8)
 
 ## Proposed release PR title
@@ -20,9 +21,13 @@ new identity, and the payload inventory describes the release package. The
 install guide includes hook review, upgrades and rollback. The final smoke test
 ties an installed package to its reviewed commit.
 
-The prior developer build passed its Desktop functional checks and PR #8's
-Codex CI. The new release package's validation results must be filled in after
-the user's step-4 approval.
+The exact new runtime candidate passed all three local provider suites:
+659 passed and seven platform skips out of 666 tests. All 65 widget checks,
+12 Codex policy fixtures and nine verifier checks passed. Installed version
+1.0.0 matched all 17 source/inventory files; its configured launcher passed an
+isolated 13-tool, annotations, UI-resource and nine-check verifier probe.
+The real Desktop activation, picker and automatic completion check remains pending.
+[Validation](VALIDATION-1.0.0.md)
 [Release record and evidence limits](RELEASE-1.0.0.md)
 
 The shared README and security wording correction remains proposed for Eashan

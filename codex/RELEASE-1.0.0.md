@@ -8,10 +8,12 @@ Owner: @Eclipse1231317. Prepared November 9, 2026.
 | Branch | `robbie/codex-v1-release` |
 | Upstream base | `7fdf0611cb684d5eb2bedbbfa608e9a4eab4d989`, merged PR #8 |
 | Package and core version | `1.0.0` |
-| Proposed GitHub tag | `v1.0.0`, subject to final release approval |
+| Proposed GitHub tag | `v1.0.0`; publication authorized after validation |
 | Package inventory | [ACCEPTANCE-CANDIDATE.json](ACCEPTANCE-CANDIDATE.json) |
-| Final suites and install test | Awaiting the user's go-ahead |
-| Publishing | Awaiting a separate go-ahead after final validation |
+| Local validation | Three provider suites, 65 widget checks, 12 Codex policy fixtures and nine verifier checks passed. Seven platform skips. |
+| Installed package | `1.0.0`: 17 payload hashes, isolated configured launcher, 13 tools, annotations, UI resource and nine installed verifier checks passed. |
+| Final Desktop smoke test | Pending restart, hook review and real picker/completion checks. |
+| Publishing | Authorized after validation; no release or tag created yet. |
 | Shared README/security wording | Proposed for Eashan in issue #6. The shared files remain at the upstream base. |
 
 ## Release notes draft
@@ -80,15 +82,18 @@ run. Their synthetic coverage remains separate. Recalculate showed successful
 rendering, while the earlier explicit refresh and idle worker provided their
 own attributable capture evidence.
 
-## Handoff when steps 4 and 5 are authorized
+## Authorized release execution
 
-Record the release branch's exact HEAD before validation. Run all three provider
-suites, the 65 widget checks, the 12 Codex policy fixtures and the repository
-verifier. Then run the [release smoke test](RELEASE-SMOKE-TEST.md) and the affected
+The user authorized steps 4 and 5 on November 9, 2026. The exact runtime commit
+`501d63f2f9ee60f89db244b90264b80e9bda7141` passed the local suites and installed
+package checks. See [VALIDATION-1.0.0.md](VALIDATION-1.0.0.md). Later readiness-only
+documentation updates do not change its 17-file payload.
+
+Complete the [release smoke test](RELEASE-SMOKE-TEST.md) and the affected
 installed checks in [INSTALLED-ACCEPTANCE.md](INSTALLED-ACCEPTANCE.md).
 Record failures and missing evidence with their actual scope.
 
 After validation and release decisions pass, prepare the release PR against
 upstream main, re-fetch and rebase before pushing, verify the final commit's CI,
-and use the separately authorized release publication step. Re-check the merged
+and use the authorized release publication step. Re-check the merged
 payload identity if merge changes its contents.

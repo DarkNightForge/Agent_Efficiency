@@ -1,7 +1,8 @@
 # Codex v1.0.0 final install smoke test
 
-Execution awaits the user's approval for step 4. This is the final packaging
-and Desktop activation check on the exact release branch commit.
+The user authorized steps 4 and 5. Local suites and installed-package checks
+passed. This is the remaining Desktop activation check on the exact release
+branch commit; publication follows successful validation.
 
 1. Record the approved full source commit and expected manifest version `1.0.0`.
    Use a clean checkout of that commit from `robbie/codex-v1-release` during

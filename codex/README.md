@@ -11,8 +11,9 @@ bounded local inputs and processes, and a read-only privacy status without addin
 cloud telemetry or third-party runtime dependencies.
 
 The v1.0.0 release branch is based on merged PR #8. The earlier developer build
-passed the recorded Desktop checks. Validation of this newly versioned package
-and the final install smoke test await the user's go-ahead. See
+passed the recorded Desktop checks. The new package
+passed all local suites and installed-package checks. The final Desktop
+activation and picker smoke test remain pending. See
 [the release record](RELEASE-1.0.0.md) for readiness and known limits.
 
 ## Install
@@ -163,8 +164,8 @@ Local state honors `AGENT_EFFICIENCY_DATA`, then `PLUGIN_DATA`. A verified legac
 Codex installation falls back to the matching host `plugins/data/` directory;
 standalone use defaults to `~/.agent-efficiency/`. Existing state locations are
 not automatically moved, merged or deleted. An override must be an absolute, dedicated
-directory. On first use, Agent Efficiency claims an empty directory—or a
-directory containing only recognized v0.4 state files—with an ownership marker.
+directory. On first use, Agent Efficiency claims an empty directoryâ€”or a
+directory containing only recognized v0.4 state filesâ€”with an ownership marker.
 It refuses filesystem roots, the home directory itself, the current working
 directory, the installed plugin directory, unclaimed directories containing
 unrelated files, and state roots or files redirected through symbolic links,
